@@ -21,6 +21,16 @@ Browser-only timer management tool with up to 4 configurable timers.
   - Cookie-based auto-save
   - JSON export and import
 
+## Screenshots
+
+**Main dashboard (4 active schedule timers, global actions, NTP status panel):**
+
+![TimerTool main dashboard with four running timers, global controls, and NTP sync panel](pics/Screenshot%202026-03-31%20002337.png)
+
+**Timer configuration modal (fixed-time/interval mode with autostart, offset, and sound settings):**
+
+![TimerTool timer configuration modal showing fixed-time interval fields and sound options](pics/Screenshot%202026-03-31%20002528.png)
+
 ## Structure
 
 - `index.html`
