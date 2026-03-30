@@ -18,7 +18,7 @@
       </div>
       <div class="header-clock">
         <div class="clock-label">Time (Local)</div>
-        <div class="clock-value" id="clock-display">--:--:--.-</div>
+        <div class="clock-value" id="clock-display">--:--:--</div>
       </div>
     </header>
 
@@ -135,6 +135,10 @@
           <span>Audio File URL</span>
           <input id="config-sound-file-url" type="url" placeholder="https://.../sound.mp3">
         </label>
+        <label class="modal-field" id="file-max-seconds-wrapper">
+          <span>Max File Playback (seconds, 0 = play to end)</span>
+          <input id="config-sound-file-max-seconds" type="number" min="0" max="86400" step="1">
+        </label>
         <label class="modal-field">
           <span>Frequency (Hz)</span>
           <input id="config-sound-frequency" type="number" min="100" max="2000" step="10">
@@ -153,7 +157,7 @@
           <input id="config-sound-volume" type="range" min="0" max="1" step="0.05">
         </label>
         <label class="modal-field">
-          <span>Burst Duration (ms)</span>
+          <span>Beep Duration (ms)</span>
           <input id="config-sound-duration" type="number" min="10" max="10000" step="10">
         </label>
         <label class="modal-field">

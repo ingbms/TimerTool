@@ -8,15 +8,13 @@ function clampNumber(value, min, max, fallback) {
 
 function formatDuration(ms) {
   const safeMs = Math.max(0, Number(ms) || 0);
-  const totalTenths = Math.floor(safeMs / 100);
-  const tenths = totalTenths % 10;
-  const totalSeconds = Math.floor(totalTenths / 10);
+  const totalSeconds = Math.floor(safeMs / 1000);
   const seconds = totalSeconds % 60;
   const totalMinutes = Math.floor(totalSeconds / 60);
   const minutes = totalMinutes % 60;
   const hours = Math.floor(totalMinutes / 60);
   const pad2 = (value) => String(value).padStart(2, "0");
-  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}.${tenths}`;
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
 }
 
 function statusText(status) {
@@ -49,18 +47,14 @@ function formatClockForTimezone(epochMs, timezone) {
       second: "2-digit",
       hour12: false,
     });
-    const base = formatter.format(new Date(epochMs));
-    const tenth = Math.floor((epochMs % 1000) / 100);
-    return `${base}.${tenth}`;
+    return formatter.format(new Date(epochMs));
   } catch (_) {
-    const fallback = new Date(epochMs).toLocaleTimeString("en-GB", {
+    return new Date(epochMs).toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       hour12: false,
     });
-    const tenth = Math.floor((epochMs % 1000) / 100);
-    return `${fallback}.${tenth}`;
   }
 }
 
@@ -73,7 +67,7 @@ function timerCardTemplate(snapshot) {
       </div>
       <div class="timer-display">
         <div class="timer-display-progress" data-role="timer-progress"></div>
-        <div class="timer-display-value" data-role="timer-display">00:00:00.0</div>
+        <div class="timer-display-value" data-role="timer-display">00:00:00</div>
       </div>
       <div class="timer-meta" data-role="timer-meta"></div>
       <div class="timer-controls">
@@ -104,6 +98,7 @@ class UIController {
     this.countdownFieldsEl = document.getElementById("countdown-fields");
     this.scheduleFieldsEl = document.getElementById("schedule-fields");
     this.fileUrlWrapperEl = document.getElementById("file-url-wrapper");
+    this.fileMaxSecondsWrapperEl = document.getElementById("file-max-seconds-wrapper");
     this.formSoundTypeEl = document.getElementById("config-sound-type");
 
     this.wireGlobalControls();
@@ -278,6 +273,7 @@ class UIController {
     document.getElementById("config-sound-enabled").checked = cfg.sound.enabled;
     this.formSoundTypeEl.value = cfg.sound.type;
     document.getElementById("config-sound-file-url").value = cfg.sound.fileUrl || "";
+    document.getElementById("config-sound-file-max-seconds").value = String(cfg.sound.fileMaxDurationSeconds || 0);
     document.getElementById("config-sound-frequency").value = String(cfg.sound.frequency);
     document.getElementById("config-sound-wave-type").value = cfg.sound.waveType;
     document.getElementById("config-sound-volume").value = String(cfg.sound.volume);
@@ -303,6 +299,7 @@ class UIController {
   updateSoundVisibility() {
     const isFile = this.formSoundTypeEl.value === "file";
     this.fileUrlWrapperEl.hidden = !isFile;
+    this.fileMaxSecondsWrapperEl.hidden = !isFile;
   }
 
   readFormData() {
@@ -324,6 +321,12 @@ class UIController {
         enabled: document.getElementById("config-sound-enabled").checked,
         type: this.formSoundTypeEl.value === "file" ? "file" : "beep",
         fileUrl: String(document.getElementById("config-sound-file-url").value || "").trim(),
+        fileMaxDurationSeconds: clampNumber(
+          document.getElementById("config-sound-file-max-seconds").value,
+          0,
+          86400,
+          0,
+        ),
         frequency: clampNumber(document.getElementById("config-sound-frequency").value, 100, 2000, 440),
         waveType: document.getElementById("config-sound-wave-type").value,
         volume: clampNumber(document.getElementById("config-sound-volume").value, 0, 1, 0.5),

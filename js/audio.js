@@ -99,7 +99,8 @@ class AudioController {
     }
 
     const volume = clampNumber(soundConfig.volume, 0, 1, 0.5);
-    const durationMs = clampNumber(soundConfig.durationMs, 10, 60000, 1000);
+    const maxFileSeconds = clampNumber(soundConfig.fileMaxDurationSeconds, 0, 86400, 0);
+    const maxFileDurationMs = maxFileSeconds > 0 ? maxFileSeconds * 1000 : 0;
 
     return new Promise((resolve) => {
       const audio = new Audio(url);
@@ -121,7 +122,9 @@ class AudioController {
       audio.addEventListener("ended", cleanup, { once: true });
       audio.addEventListener("error", cleanup, { once: true });
 
-      timeoutId = setTimeout(cleanup, durationMs + 120);
+      if (maxFileDurationMs > 0) {
+        timeoutId = setTimeout(cleanup, maxFileDurationMs + 120);
+      }
       audio.play().catch(cleanup);
     });
   }

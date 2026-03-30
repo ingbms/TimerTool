@@ -36,6 +36,7 @@ function defaultSoundConfig() {
     enabled: true,
     type: "beep",
     fileUrl: "",
+    fileMaxDurationSeconds: 0,
     frequency: 440,
     waveType: "sine",
     volume: 0.25,
@@ -64,6 +65,7 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
       pauseBetweenMs: 0,
       waveType: "sine",
       fileUrl: "",
+      fileMaxDurationSeconds: 0,
     },
   },
   {
@@ -84,6 +86,7 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
       pauseBetweenMs: 100,
       waveType: "sine",
       fileUrl: "",
+      fileMaxDurationSeconds: 0,
     },
   },
   {
@@ -104,6 +107,7 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
       pauseBetweenMs: 100,
       waveType: "sine",
       fileUrl: "",
+      fileMaxDurationSeconds: 0,
     },
   },
   {
@@ -124,6 +128,7 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
       pauseBetweenMs: 100,
       waveType: "sine",
       fileUrl: "",
+      fileMaxDurationSeconds: 0,
     },
   },
 ]);
@@ -155,6 +160,7 @@ function normalizeTimerConfig(rawConfig = {}, id = 0) {
       enabled: Boolean(soundRaw.enabled ?? true),
       type: soundRaw.type === "file" ? "file" : "beep",
       fileUrl: String(soundRaw.fileUrl || "").trim(),
+      fileMaxDurationSeconds: clampNumber(soundRaw.fileMaxDurationSeconds, 0, 86400, 0),
       frequency: clampNumber(soundRaw.frequency, 100, 2000, 440),
       waveType: ["sine", "square", "triangle", "sawtooth"].includes(soundRaw.waveType)
         ? soundRaw.waveType

@@ -1,0 +1,120 @@
+{
+  "exportVersion": "1.0.0",
+  "exportDate": "2026-03-30T12:46:37.707Z",
+  "timers": [
+    {
+      "id": 0,
+      "name": "Timer 1",
+      "mode": "countdown",
+      "durationMs": 300000,
+      "scheduleStart": "14:00",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 10000,
+      "endTime": "22:00",
+      "maxTriggers": 0,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "frequency": 440,
+        "waveType": "sine",
+        "volume": 0.5,
+        "durationMs": 320,
+        "repeatCount": 2,
+        "pauseBetweenMs": 140
+      }
+    },
+    {
+      "id": 1,
+      "name": "Timer 2",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "09:00",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 10000,
+      "endTime": "22:00",
+      "maxTriggers": 0,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "frequency": 1440,
+        "waveType": "sine",
+        "volume": 0.5,
+        "durationMs": 320,
+        "repeatCount": 2,
+        "pauseBetweenMs": 140
+      }
+    },
+    {
+      "id": 2,
+      "name": "Timer 3",
+      "mode": "countdown",
+      "durationMs": 300000,
+      "scheduleStart": "11:00",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 0,
+      "endTime": "",
+      "maxTriggers": 1,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "frequency": 440,
+        "waveType": "sine",
+        "volume": 0.5,
+        "durationMs": 320,
+        "repeatCount": 2,
+        "pauseBetweenMs": 140
+      }
+    },
+    {
+      "id": 3,
+      "name": "Timer 4",
+      "mode": "countdown",
+      "durationMs": 300000,
+      "scheduleStart": "11:00",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 0,
+      "endTime": "",
+      "maxTriggers": 1,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "frequency": 440,
+        "waveType": "sine",
+        "volume": 0.5,
+        "durationMs": 320,
+        "repeatCount": 2,
+        "pauseBetweenMs": 140
+      }
+    },
+    {
+      "id": 4,
+      "name": "Timer 5",
+      "mode": "countdown",
+      "durationMs": 300000,
+      "scheduleStart": "11:00",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 0,
+      "endTime": "",
+      "maxTriggers": 1,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "frequency": 440,
+        "waveType": "sine",
+        "volume": 0.5,
+        "durationMs": 320,
+        "repeatCount": 2,
+        "pauseBetweenMs": 140
+      }
+    }
+  ],
+  "settings": {
+    "timezone": "__local__",
+    "ntpIntervalMs": 1800000
+  }
+}
