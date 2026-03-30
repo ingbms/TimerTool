@@ -31,6 +31,12 @@ Browser-only timer management tool with up to 4 configurable timers.
 
 ![TimerTool timer configuration modal showing fixed-time interval fields and sound options](pics/Screenshot%202026-03-31%20002528.png)
 
+## Documentation
+
+- Overview: [documantation/README.md](documantation/README.md)
+- Config reference: [documantation/KONFIGURATION.md](documantation/KONFIGURATION.md)
+- Use cases and config examples: [documantation/ANWENDUNGSSZENARIEN.md](documantation/ANWENDUNGSSZENARIEN.md)
+
 ## Structure
 
 - `index.html`
