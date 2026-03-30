@@ -24,6 +24,9 @@ function statusText(status) {
   if (status === "paused") {
     return "PAUSED";
   }
+  if (status === "pending") {
+    return "PENDING";
+  }
   if (status === "completed") {
     return "DONE";
   }
@@ -31,7 +34,7 @@ function statusText(status) {
 }
 
 function statusClass(status) {
-  if (status === "running" || status === "paused" || status === "completed") {
+  if (status === "running" || status === "paused" || status === "completed" || status === "pending") {
     return status;
   }
   return "stopped";
@@ -269,6 +272,7 @@ class UIController {
     document.getElementById("config-offset-seconds").value = String(Math.round(cfg.offsetBeforeMs / 1000));
     document.getElementById("config-end-time").value = cfg.endTime;
     document.getElementById("config-max-triggers").value = String(cfg.maxTriggers);
+    document.getElementById("config-autostart").checked = cfg.autostart;
 
     document.getElementById("config-sound-enabled").checked = cfg.sound.enabled;
     this.formSoundTypeEl.value = cfg.sound.type;
@@ -317,6 +321,7 @@ class UIController {
       offsetBeforeMs: offsetSeconds * 1000,
       endTime: document.getElementById("config-end-time").value || "",
       maxTriggers: clampNumber(document.getElementById("config-max-triggers").value, 0, 999, 0),
+      autostart: Boolean(document.getElementById("config-autostart").checked),
       sound: {
         enabled: document.getElementById("config-sound-enabled").checked,
         type: this.formSoundTypeEl.value === "file" ? "file" : "beep",

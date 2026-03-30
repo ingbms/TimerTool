@@ -50,11 +50,12 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
   {
     name: "Timer5",
     mode: "schedule",
-    scheduleStart: "09:00",
+    scheduleStart: "08:45",
     intervalMs: 300 * 1000,
     offsetBeforeMs: 5 * 1000,
-    endTime: "22:00",
+    endTime: "22:45",
     maxTriggers: 0,
+    autostart: false,
     sound: {
       enabled: true,
       type: "beep",
@@ -71,11 +72,12 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
   {
     name: "Timer15",
     mode: "schedule",
-    scheduleStart: "09:00",
+    scheduleStart: "08:45",
     intervalMs: 900 * 1000,
     offsetBeforeMs: 10 * 1000,
-    endTime: "22:00",
+    endTime: "22:45",
     maxTriggers: 0,
+    autostart: false,
     sound: {
       enabled: true,
       type: "beep",
@@ -92,11 +94,12 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
   {
     name: "Timer30",
     mode: "schedule",
-    scheduleStart: "09:00",
+    scheduleStart: "08:45",
     intervalMs: 1800 * 1000,
     offsetBeforeMs: 15 * 1000,
-    endTime: "22:00",
+    endTime: "22:45",
     maxTriggers: 0,
+    autostart: false,
     sound: {
       enabled: true,
       type: "beep",
@@ -113,11 +116,12 @@ const DEFAULT_TIMER_PRESETS = Object.freeze([
   {
     name: "Timer60",
     mode: "schedule",
-    scheduleStart: "09:00",
+    scheduleStart: "08:45",
     intervalMs: 3600 * 1000,
     offsetBeforeMs: 25 * 1000,
-    endTime: "22:00",
+    endTime: "22:45",
     maxTriggers: 0,
+    autostart: false,
     sound: {
       enabled: true,
       type: "beep",
@@ -154,6 +158,7 @@ function normalizeTimerConfig(rawConfig = {}, id = 0) {
     offsetBeforeMs: clampNumber(rawConfig.offsetBeforeMs, 0, 60 * 60 * 1000, 0),
     endTime: isValidHHMM(rawConfig.endTime) ? rawConfig.endTime : "",
     maxTriggers: clampNumber(rawConfig.maxTriggers, 0, 999, 0),
+    autostart: Boolean(rawConfig.autostart ?? false),
     sound: {
       ...defaultSoundConfig(),
       ...soundRaw,
@@ -184,6 +189,7 @@ function createRuntimeState() {
     nextTriggerMs: null,
     endAtMs: null,
     triggerCount: 0,
+    autoPendingAtMs: 0,
   };
 }
 
@@ -217,6 +223,20 @@ class Timer {
     }
 
     this.runtime = createRuntimeState();
+    
+    // For schedule mode with autostart, go to pending state first
+    if (this.config.mode === "schedule" && this.config.autostart) {
+      this.runtime.status = "pending";
+      this.runtime.startedAtMs = nowMs;
+      const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
+      if (schedule) {
+        this.runtime.nextTriggerMs = schedule.nextTriggerMs;
+        this.runtime.endAtMs = schedule.endAtMs;
+      }
+      // Stay pending even if schedule is null (time outside window)
+      return;
+    }
+
     this.runtime.status = "running";
     this.runtime.startedAtMs = nowMs;
 
@@ -269,9 +289,9 @@ class Timer {
     this.reset();
   }
 
-  computeSchedule(nowMs) {
+  computeSchedule(nowMs, { includeBaseTrigger = false } = {}) {
     const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart);
-    const firstTriggerMs = baseMs + this.config.intervalMs;
+    const firstTriggerMs = includeBaseTrigger ? baseMs : baseMs + this.config.intervalMs;
 
     let nextTriggerMs = firstTriggerMs;
     if (nowMs > firstTriggerMs) {
@@ -305,13 +325,20 @@ class Timer {
     const remainingTriggers = this.config.maxTriggers === 0
       ? "unlimited"
       : Math.max(0, this.config.maxTriggers - this.runtime.triggerCount);
+    
+    const autostartLabel = this.config.autostart ? " | Autost. ✓" : "";
+    
+    if (this.runtime.status === "pending") {
+      return `Pending autostart at ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}${autostartLabel}`;
+    }
+    
     if (this.runtime.status === "running") {
       const next = this.runtime.nextTriggerMs
         ? new Date(this.runtime.nextTriggerMs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         : "--:--:--";
-      return `Next: ${next} | End: ${endLabel} | Remaining: ${remainingTriggers}`;
+      return `Next: ${next} | End: ${endLabel} | Remaining: ${remainingTriggers}${autostartLabel}`;
     }
-    return `Start: ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}`;
+    return `Start: ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}${autostartLabel}`;
   }
 
   snapshot(nowMs) {
@@ -343,6 +370,48 @@ class Timer {
 
   tick(nowMs) {
     const events = [];
+    
+    // Handle autostart pending state for schedule timers
+    if (this.config.mode === "schedule" && this.config.autostart) {
+      // Compute the base time and end time for today
+      const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart);
+      let endMs = null;
+      if (this.config.endTime) {
+        endMs = setTimeOnDate(baseMs, this.config.endTime);
+        if (endMs <= baseMs) {
+          // End time is tomorrow
+          endMs += DAY_MS;
+        }
+      }
+      
+      // Initialize schedule times if not already set (first time entering pending)
+      if (this.runtime.status === "pending" && !Number.isFinite(this.runtime.nextTriggerMs)) {
+        const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
+        if (schedule) {
+          this.runtime.nextTriggerMs = schedule.nextTriggerMs;
+          this.runtime.endAtMs = schedule.endAtMs;
+        }
+      }
+      
+      if (this.runtime.status === "pending") {
+        const activationMs = baseMs - this.config.offsetBeforeMs;
+        // Transition to running once activation time is reached (base time minus offset)
+        if (nowMs >= activationMs && (!Number.isFinite(endMs) || nowMs < endMs)) {
+          this.runtime.status = "running";
+        } else {
+          // Stay pending, don't process triggers
+          return { events, snapshot: this.snapshot(nowMs) };
+        }
+      } else if (this.runtime.status === "running") {
+        // Transition back to pending if we've reached the end time
+        if (Number.isFinite(endMs) && nowMs >= endMs) {
+          this.runtime.status = "pending";
+          this.runtime.autoPendingAtMs = nowMs;
+          return { events, snapshot: this.snapshot(nowMs) };
+        }
+      }
+    }
+    
     if (this.runtime.status !== "running") {
       return { events, snapshot: this.snapshot(nowMs) };
     }
@@ -380,8 +449,14 @@ class Timer {
 
       const nextTriggerMs = this.runtime.nextTriggerMs + this.config.intervalMs;
       if (Number.isFinite(this.runtime.endAtMs) && nextTriggerMs - this.config.offsetBeforeMs > this.runtime.endAtMs) {
-        this.runtime.status = "completed";
-        this.runtime.completedAtMs = nowMs;
+        // For autostart timers, go back to pending instead of completed
+        if (this.config.autostart) {
+          this.runtime.status = "pending";
+          this.runtime.autoPendingAtMs = nowMs;
+        } else {
+          this.runtime.status = "completed";
+          this.runtime.completedAtMs = nowMs;
+        }
         break;
       }
       this.runtime.nextTriggerMs = nextTriggerMs;

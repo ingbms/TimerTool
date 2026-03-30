@@ -884,6 +884,7 @@ function setLocale(locale) {
 ## 📚 Ressourcen & References
 
 - **Web Audio API:** https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+- **TTS :** https://github.com/OHF-Voice/piper1-gpl
 - **requestAnimationFrame:** https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
 - **NTP zu JavaScript:** ntpjs library oder world-time-api
 - **Material Design:** https://material.io/design

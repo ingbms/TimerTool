@@ -89,7 +89,7 @@ body {
 
 .clock-value {
   font-family: "Space Mono", monospace;
-  font-size: clamp(1rem, 2.4vw, 1.4rem);
+  font-size: clamp(2rem, 4.8vw, 2.8rem);
   letter-spacing: 0.08em;
 }
 
@@ -275,6 +275,10 @@ body {
 
 .status-badge.paused {
   color: var(--warn);
+}
+
+.status-badge.pending {
+  color: #b3b3e0;
 }
 
 .status-badge.completed {
