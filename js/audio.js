@@ -62,7 +62,7 @@ class AudioController {
 
     const frequency = clampNumber(soundConfig.frequency, 100, 2000, 440);
     const volume = clampNumber(soundConfig.volume, 0, 1, 0.5);
-    const durationMs = clampNumber(soundConfig.durationMs, 50, 10000, 260);
+    const durationMs = clampNumber(soundConfig.durationMs, 10, 10000, 260);
     const waveType = ["sine", "square", "triangle", "sawtooth"].includes(soundConfig.waveType)
       ? soundConfig.waveType
       : "sine";
@@ -99,7 +99,7 @@ class AudioController {
     }
 
     const volume = clampNumber(soundConfig.volume, 0, 1, 0.5);
-    const durationMs = clampNumber(soundConfig.durationMs, 50, 60000, 1000);
+    const durationMs = clampNumber(soundConfig.durationMs, 10, 60000, 1000);
 
     return new Promise((resolve) => {
       const audio = new Audio(url);

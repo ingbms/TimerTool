@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
@@ -17,47 +17,50 @@
         <p>Flexible browser-only timer suite</p>
       </div>
       <div class="header-clock">
-        <div class="clock-label">Realtime</div>
+        <div class="clock-label">Time (Local)</div>
         <div class="clock-value" id="clock-display">--:--:--.-</div>
       </div>
     </header>
 
-    <section class="control-strip">
-      <label class="control-group">
-        <span>Timezone</span>
-        <select id="timezone-select" aria-label="Zeitzone waehlen">
-          <option value="__local__">Local (System)</option>
-          <option value="Europe/Berlin">Europe/Berlin</option>
-          <option value="UTC">UTC</option>
-          <option value="America/New_York">America/New_York</option>
-          <option value="Asia/Tokyo">Asia/Tokyo</option>
-        </select>
-      </label>
-    </section>
+    <main class="timers-wrapper">
+      <div id="timers-grid" class="timers-grid" aria-label="Timer overview"></div>
+    </main>
 
     <section class="global-actions">
-      <button id="start-all-btn" class="btn btn-primary" type="button">Start All</button>
-      <button id="pause-all-btn" class="btn btn-secondary" type="button">Pause All</button>
-      <button id="resume-all-btn" class="btn btn-secondary" type="button">Resume All</button>
-      <button id="reset-all-btn" class="btn btn-danger" type="button">Reset All</button>
-      <button id="save-json-btn" class="btn btn-secondary" type="button">Save JSON</button>
-      <button id="load-json-btn" class="btn btn-secondary" type="button">Load JSON</button>
+      <label class="global-tone-toggle" for="global-tone-disable">
+        <input id="global-tone-disable" type="checkbox">
+        <span>Global tone disable</span>
+      </label>
+      <div class="global-actions-buttons">
+        <button id="start-all-btn" class="btn btn-primary" type="button">Start All</button>
+        <button id="reset-all-btn" class="btn btn-danger" type="button">Reset All</button>
+        <button id="save-json-btn" class="btn btn-secondary" type="button">Save JSON</button>
+        <button id="load-json-btn" class="btn btn-secondary" type="button">Load JSON</button>
+      </div>
       <input id="json-file-input" type="file" accept="application/json,.json" hidden>
     </section>
-
-    <main class="timers-wrapper">
-      <div id="timers-grid" class="timers-grid" aria-label="Timer Uebersicht"></div>
-    </main>
 
     <section class="ntp-panel">
       <div class="ntp-panel-head">NTP Sync (optional)</div>
       <div class="ntp-panel-row">
         <label class="control-group">
           <span>NTP Sync (Min.)</span>
-          <input id="ntp-interval-minutes" type="number" min="1" max="240" step="1" value="30" aria-label="NTP Intervall in Minuten">
+          <input id="ntp-interval-minutes" type="number" min="1" max="240" step="1" value="30" aria-label="NTP interval in minutes">
         </label>
         <button id="sync-now-btn" class="btn btn-secondary" type="button">Sync Now</button>
-        <span class="sync-status" id="sync-status">Zeitquelle: Systemzeit</span>
+        <span class="sync-status" id="sync-status">Time source: system clock</span>
+      </div>
+      <div class="ntp-panel-row ntp-panel-row-timezone">
+        <label class="control-group">
+          <span>Timezone</span>
+          <select id="timezone-select" aria-label="Choose timezone">
+            <option value="__local__">Local (System)</option>
+            <option value="Europe/Berlin">Europe/Berlin</option>
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="Asia/Tokyo">Asia/Tokyo</option>
+          </select>
+        </label>
       </div>
     </section>
 
@@ -69,7 +72,7 @@
 
   <dialog id="timer-config-modal" class="config-modal">
     <form id="timer-config-form" method="dialog" novalidate>
-      <h2 id="config-title">Timer konfigurieren</h2>
+      <h2 id="config-title">Configure Timer</h2>
       <input id="config-timer-id" type="hidden">
 
       <label class="modal-field">
@@ -81,7 +84,7 @@
         <span>Mode</span>
         <select id="config-mode">
           <option value="countdown">Countdown</option>
-          <option value="schedule">Fixed Time + Interval</option>
+          <option value="schedule">Fixed-Time / Interval</option>
         </select>
       </label>
 
@@ -151,7 +154,7 @@
         </label>
         <label class="modal-field">
           <span>Burst Duration (ms)</span>
-          <input id="config-sound-duration" type="number" min="50" max="10000" step="10">
+          <input id="config-sound-duration" type="number" min="10" max="10000" step="10">
         </label>
         <label class="modal-field">
           <span>Burst Count</span>
@@ -164,6 +167,7 @@
       </section>
 
       <menu class="modal-actions">
+        <button id="modal-reset-btn" class="btn btn-danger" type="button">Reset Timer</button>
         <button id="modal-cancel-btn" class="btn btn-secondary" type="button">Cancel</button>
         <button id="modal-save-btn" class="btn btn-primary" type="submit">Save Timer</button>
       </menu>

@@ -48,12 +48,17 @@ body {
 }
 
 .app-header {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
-  align-items: center;
   padding: 1.2rem;
   border-bottom: 1px solid rgba(122, 168, 212, 0.25);
+}
+
+.brand {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .brand h1 {
@@ -68,7 +73,9 @@ body {
 }
 
 .header-clock {
-  min-width: 220px;
+  width: 280px;
+  flex: 0 0 280px;
+  margin-left: auto;
   padding: 0.65rem 0.9rem;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -111,6 +118,10 @@ body {
   flex-wrap: wrap;
   gap: 0.7rem;
   align-items: flex-end;
+}
+
+.ntp-panel-row-timezone {
+  margin-top: 0.4rem;
 }
 
 .control-group {
@@ -156,10 +167,24 @@ body {
 
 .global-actions {
   padding: 0.8rem 1.2rem;
+  display: grid;
+  gap: 0.7rem;
+  border-top: 1px solid rgba(122, 168, 212, 0.2);
+  border-bottom: 1px solid rgba(122, 168, 212, 0.2);
+}
+
+.global-tone-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 36px;
+  color: var(--text-muted);
+}
+
+.global-actions-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
-  border-bottom: 1px solid rgba(122, 168, 212, 0.2);
 }
 
 .btn {
@@ -257,6 +282,8 @@ body {
 }
 
 .timer-display {
+  position: relative;
+  overflow: hidden;
   font-family: "Space Mono", monospace;
   font-size: clamp(1.2rem, 3vw, 2rem);
   letter-spacing: 0.05em;
@@ -265,6 +292,21 @@ body {
   border-radius: 12px;
   padding: 0.9rem 0.6rem;
   background: rgba(9, 22, 38, 0.74);
+}
+
+.timer-display-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(38, 183, 255, 0.17), rgba(38, 183, 255, 0.06));
+  transition: width 0.15s linear;
+}
+
+.timer-display-value {
+  position: relative;
+  z-index: 1;
 }
 
 .timer-meta {
@@ -344,7 +386,8 @@ body {
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.55rem;
   padding: 0;
   margin: 0.35rem 0 0;
@@ -373,13 +416,10 @@ body {
   border-color: rgba(255, 93, 93, 0.52);
 }
 
-@media (max-width: 900px) {
-  .app-header {
-    grid-template-columns: 1fr;
-  }
-
+@media (max-width: 1100px) {
   .header-clock {
-    min-width: 0;
+    width: 250px;
+    flex-basis: 250px;
   }
 }
 
@@ -392,11 +432,27 @@ body {
     border-radius: 12px;
   }
 
-  .global-actions .btn {
+  .global-actions-buttons .btn {
     flex: 1 1 42%;
   }
 
   .ntp-panel-row .control-group {
     min-width: 100%;
+  }
+
+  .header-clock {
+    width: 220px;
+    flex-basis: 220px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    flex-direction: column;
+  }
+
+  .header-clock {
+    width: 100%;
+    flex-basis: auto;
   }
 }

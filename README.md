@@ -1,6 +1,6 @@
 # TimerTool
 
-Browser-only timer management tool with up to 5 configurable timers.
+Browser-only timer management tool with up to 4 configurable timers.
 
 ## Features
 
@@ -8,7 +8,7 @@ Browser-only timer management tool with up to 5 configurable timers.
 - Automatic fallback to system time if NTP is unavailable or offline
 - 0.1 second display precision
 - Drift-resistant timing based on absolute timestamps
-- Up to 5 timers
+- Up to 4 timers
 - Modes:
   - Countdown
   - Fixed base time + repeating interval + optional offset before trigger
@@ -17,7 +17,7 @@ Browser-only timer management tool with up to 5 configurable timers.
   - Burst duration, repeat count, pause between bursts
   - Optional audio file URL playback
 - Global controls:
-  - Start all, pause all, resume all, reset all (with confirmation)
+  - Start all, reset all (with confirmation)
 - Persistence:
   - Cookie-based auto-save
   - JSON export and import

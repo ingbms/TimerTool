@@ -42,7 +42,7 @@ function statusClass(status) {
 function formatClockForTimezone(epochMs, timezone) {
   const useLocal = !timezone || timezone === "__local__";
   try {
-    const formatter = new Intl.DateTimeFormat("de-DE", {
+    const formatter = new Intl.DateTimeFormat("en-GB", {
       ...(useLocal ? {} : { timeZone: timezone }),
       hour: "2-digit",
       minute: "2-digit",
@@ -53,7 +53,7 @@ function formatClockForTimezone(epochMs, timezone) {
     const tenth = Math.floor((epochMs % 1000) / 100);
     return `${base}.${tenth}`;
   } catch (_) {
-    const fallback = new Date(epochMs).toLocaleTimeString("de-DE", {
+    const fallback = new Date(epochMs).toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -71,12 +71,13 @@ function timerCardTemplate(snapshot) {
         <h3 class="timer-name" data-role="timer-name"></h3>
         <span class="status-badge ${statusClass(snapshot.status)}" data-role="timer-status"></span>
       </div>
-      <div class="timer-display" data-role="timer-display">00:00:00.0</div>
+      <div class="timer-display">
+        <div class="timer-display-progress" data-role="timer-progress"></div>
+        <div class="timer-display-value" data-role="timer-display">00:00:00.0</div>
+      </div>
       <div class="timer-meta" data-role="timer-meta"></div>
       <div class="timer-controls">
-        <button type="button" class="btn btn-primary" data-action="start">Start</button>
-        <button type="button" class="btn btn-secondary" data-action="pause-resume">Pause</button>
-        <button type="button" class="btn btn-secondary" data-action="reset">Reset</button>
+        <button type="button" class="btn btn-primary" data-action="start-stop">Start</button>
         <button type="button" class="btn btn-secondary" data-action="config">Config</button>
       </div>
     </article>
@@ -88,6 +89,7 @@ class UIController {
     this.timerManager = timerManager;
     this.handlers = handlers;
     this.timezone = "__local__";
+    this.globalToneDisabled = false;
 
     this.gridEl = document.getElementById("timers-grid");
     this.clockEl = document.getElementById("clock-display");
@@ -96,6 +98,7 @@ class UIController {
     this.modalEl = document.getElementById("timer-config-modal");
     this.formEl = document.getElementById("timer-config-form");
     this.fileInputEl = document.getElementById("json-file-input");
+    this.globalToneDisableEl = document.getElementById("global-tone-disable");
     this.formTimerIdEl = document.getElementById("config-timer-id");
     this.formModeEl = document.getElementById("config-mode");
     this.countdownFieldsEl = document.getElementById("countdown-fields");
@@ -109,13 +112,11 @@ class UIController {
   }
 
   wireGlobalControls() {
-    document.getElementById("start-all-btn").addEventListener("click", () => this.handlers.startAll());
-    document.getElementById("pause-all-btn").addEventListener("click", () => this.handlers.pauseAll());
-    document.getElementById("resume-all-btn").addEventListener("click", () => this.handlers.resumeAll());
-    document.getElementById("reset-all-btn").addEventListener("click", () => this.handlers.resetAll());
-    document.getElementById("sync-now-btn").addEventListener("click", () => this.handlers.syncNow());
-    document.getElementById("save-json-btn").addEventListener("click", () => this.handlers.saveJson());
-    document.getElementById("load-json-btn").addEventListener("click", () => this.fileInputEl.click());
+    document.getElementById("start-all-btn")?.addEventListener("click", () => this.handlers.startAll());
+    document.getElementById("reset-all-btn")?.addEventListener("click", () => this.handlers.resetAll());
+    document.getElementById("sync-now-btn")?.addEventListener("click", () => this.handlers.syncNow());
+    document.getElementById("save-json-btn")?.addEventListener("click", () => this.handlers.saveJson());
+    document.getElementById("load-json-btn")?.addEventListener("click", () => this.fileInputEl.click());
 
     const timezoneSelect = document.getElementById("timezone-select");
     timezoneSelect.addEventListener("change", (event) => {
@@ -138,6 +139,11 @@ class UIController {
       this.handlers.loadJsonFile(file);
       this.fileInputEl.value = "";
     });
+
+    this.globalToneDisableEl?.addEventListener("change", (event) => {
+      this.globalToneDisabled = Boolean(event.target.checked);
+      this.handlers.setGlobalToneDisabled(this.globalToneDisabled);
+    });
   }
 
   wireGridEvents() {
@@ -153,12 +159,8 @@ class UIController {
       const timerId = Number(card.dataset.timerId);
       const action = actionButton.dataset.action;
 
-      if (action === "start") {
-        this.handlers.startTimer(timerId);
-      } else if (action === "pause-resume") {
-        this.handlers.togglePauseResume(timerId);
-      } else if (action === "reset") {
-        this.handlers.resetTimer(timerId);
+      if (action === "start-stop") {
+        this.handlers.toggleStartStop(timerId);
       } else if (action === "config") {
         this.openConfigModal(timerId);
       }
@@ -167,6 +169,11 @@ class UIController {
 
   wireModalControls() {
     document.getElementById("modal-cancel-btn").addEventListener("click", () => this.closeConfigModal());
+    document.getElementById("modal-reset-btn").addEventListener("click", () => {
+      const timerId = Number(this.formTimerIdEl.value);
+      this.handlers.resetTimer(timerId);
+      this.closeConfigModal();
+    });
     this.formModeEl.addEventListener("change", () => this.updateModeVisibility());
     this.formSoundTypeEl.addEventListener("change", () => this.updateSoundVisibility());
 
@@ -180,6 +187,7 @@ class UIController {
 
   initialize(initialSnapshots, settings = {}) {
     this.timezone = settings.timezone || this.timezone;
+    this.globalToneDisabled = Boolean(settings.globalToneDisabled);
     const timezoneSelect = document.getElementById("timezone-select");
     timezoneSelect.value = this.timezone;
     if (timezoneSelect.value !== this.timezone) {
@@ -188,6 +196,9 @@ class UIController {
     }
     if (settings.ntpIntervalMinutes) {
       document.getElementById("ntp-interval-minutes").value = String(settings.ntpIntervalMinutes);
+    }
+    if (this.globalToneDisableEl) {
+      this.globalToneDisableEl.checked = this.globalToneDisabled;
     }
 
     this.gridEl.innerHTML = initialSnapshots.map((snapshot) => timerCardTemplate(snapshot)).join("");
@@ -206,16 +217,19 @@ class UIController {
       const nameEl = card.querySelector('[data-role="timer-name"]');
       const statusEl = card.querySelector('[data-role="timer-status"]');
       const displayEl = card.querySelector('[data-role="timer-display"]');
+      const progressEl = card.querySelector('[data-role="timer-progress"]');
       const metaEl = card.querySelector('[data-role="timer-meta"]');
-      const pauseResumeBtn = card.querySelector('button[data-action="pause-resume"]');
+      const startStopBtn = card.querySelector('button[data-action="start-stop"]');
 
       nameEl.textContent = snapshot.config.name;
       statusEl.textContent = statusText(snapshot.status);
       statusEl.className = `status-badge ${statusClass(snapshot.status)}`;
       displayEl.textContent = formatDuration(snapshot.remainingMs);
+      progressEl.style.width = `${snapshot.progressPercent || 0}%`;
       metaEl.textContent = snapshot.metaText || "";
 
-      pauseResumeBtn.textContent = snapshot.status === "paused" ? "Resume" : "Pause";
+      const isActive = snapshot.status === "running" || snapshot.status === "paused";
+      startStopBtn.textContent = isActive ? "Stop" : "Start";
     });
   }
 
@@ -226,19 +240,19 @@ class UIController {
   updateSyncStatus(statusSnapshot) {
     const { lastStatus, lastSyncMs } = statusSnapshot;
     const syncTimeLabel = lastSyncMs
-      ? new Date(lastSyncMs).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      ? new Date(lastSyncMs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
       : "--:--:--";
-    let statusTextValue = "Zeitquelle: Systemzeit";
+    let statusTextValue = "Time source: system clock";
     this.syncStatusEl.classList.remove("is-ok", "is-fallback");
 
     if (lastStatus === "synced") {
-      statusTextValue = `Zeitquelle: NTP (letzter Sync ${syncTimeLabel})`;
+      statusTextValue = `Time source: NTP (last sync ${syncTimeLabel})`;
       this.syncStatusEl.classList.add("is-ok");
     } else if (lastStatus === "offline-fallback") {
-      statusTextValue = "Zeitquelle: Offline fallback auf Systemzeit";
+      statusTextValue = "Time source: offline fallback to system clock";
       this.syncStatusEl.classList.add("is-fallback");
     } else if (lastStatus === "system-fallback") {
-      statusTextValue = "Zeitquelle: NTP nicht erreichbar, nutze Systemzeit";
+      statusTextValue = "Time source: NTP unreachable, using system clock";
       this.syncStatusEl.classList.add("is-fallback");
     }
     this.syncStatusEl.textContent = statusTextValue;
@@ -301,11 +315,11 @@ class UIController {
       name: String(document.getElementById("config-name").value || "").trim(),
       mode,
       durationMs: durationSeconds * 1000,
-      scheduleStart: document.getElementById("config-schedule-start").value || "11:00",
+      scheduleStart: document.getElementById("config-schedule-start").value || "09:00",
       intervalMs: intervalSeconds * 1000,
       offsetBeforeMs: offsetSeconds * 1000,
       endTime: document.getElementById("config-end-time").value || "",
-      maxTriggers: clampNumber(document.getElementById("config-max-triggers").value, 0, 999, 1),
+      maxTriggers: clampNumber(document.getElementById("config-max-triggers").value, 0, 999, 0),
       sound: {
         enabled: document.getElementById("config-sound-enabled").checked,
         type: this.formSoundTypeEl.value === "file" ? "file" : "beep",
@@ -313,7 +327,7 @@ class UIController {
         frequency: clampNumber(document.getElementById("config-sound-frequency").value, 100, 2000, 440),
         waveType: document.getElementById("config-sound-wave-type").value,
         volume: clampNumber(document.getElementById("config-sound-volume").value, 0, 1, 0.5),
-        durationMs: clampNumber(document.getElementById("config-sound-duration").value, 50, 10000, 320),
+        durationMs: clampNumber(document.getElementById("config-sound-duration").value, 10, 10000, 320),
         repeatCount: clampNumber(document.getElementById("config-sound-repeat-count").value, 1, 50, 2),
         pauseBetweenMs: clampNumber(document.getElementById("config-sound-pause-between").value, 0, 5000, 140),
       },

@@ -1,5 +1,5 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_TIMERS = 5;
+const MAX_TIMERS = 4;
 
 function clampNumber(value, min, max, fallback) {
   const parsed = Number(value);
@@ -38,11 +38,103 @@ function defaultSoundConfig() {
     fileUrl: "",
     frequency: 440,
     waveType: "sine",
-    volume: 0.5,
-    durationMs: 320,
-    repeatCount: 2,
-    pauseBetweenMs: 140,
+    volume: 0.25,
+    durationMs: 250,
+    repeatCount: 1,
+    pauseBetweenMs: 0,
   };
+}
+
+const DEFAULT_TIMER_PRESETS = Object.freeze([
+  {
+    name: "Timer5",
+    mode: "schedule",
+    scheduleStart: "09:00",
+    intervalMs: 300 * 1000,
+    offsetBeforeMs: 5 * 1000,
+    endTime: "22:00",
+    maxTriggers: 0,
+    sound: {
+      enabled: true,
+      type: "beep",
+      frequency: 440,
+      volume: 0.25,
+      durationMs: 250,
+      repeatCount: 1,
+      pauseBetweenMs: 0,
+      waveType: "sine",
+      fileUrl: "",
+    },
+  },
+  {
+    name: "Timer15",
+    mode: "schedule",
+    scheduleStart: "09:00",
+    intervalMs: 900 * 1000,
+    offsetBeforeMs: 10 * 1000,
+    endTime: "22:00",
+    maxTriggers: 0,
+    sound: {
+      enabled: true,
+      type: "beep",
+      frequency: 1440,
+      volume: 0.25,
+      durationMs: 150,
+      repeatCount: 2,
+      pauseBetweenMs: 100,
+      waveType: "sine",
+      fileUrl: "",
+    },
+  },
+  {
+    name: "Timer30",
+    mode: "schedule",
+    scheduleStart: "09:00",
+    intervalMs: 1800 * 1000,
+    offsetBeforeMs: 15 * 1000,
+    endTime: "22:00",
+    maxTriggers: 0,
+    sound: {
+      enabled: true,
+      type: "beep",
+      frequency: 1720,
+      volume: 0.25,
+      durationMs: 10,
+      repeatCount: 4,
+      pauseBetweenMs: 100,
+      waveType: "sine",
+      fileUrl: "",
+    },
+  },
+  {
+    name: "Timer60",
+    mode: "schedule",
+    scheduleStart: "09:00",
+    intervalMs: 3600 * 1000,
+    offsetBeforeMs: 25 * 1000,
+    endTime: "22:00",
+    maxTriggers: 0,
+    sound: {
+      enabled: true,
+      type: "beep",
+      frequency: 220,
+      volume: 0.25,
+      durationMs: 10,
+      repeatCount: 5,
+      pauseBetweenMs: 100,
+      waveType: "sine",
+      fileUrl: "",
+    },
+  },
+]);
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getDefaultPresetByIndex(index) {
+  const preset = DEFAULT_TIMER_PRESETS[index] || {};
+  return deepClone(preset);
 }
 
 function normalizeTimerConfig(rawConfig = {}, id = 0) {
@@ -52,11 +144,11 @@ function normalizeTimerConfig(rawConfig = {}, id = 0) {
     name: String(rawConfig.name || `Timer ${id + 1}`).trim().slice(0, 30) || `Timer ${id + 1}`,
     mode: rawConfig.mode === "schedule" ? "schedule" : "countdown",
     durationMs: clampNumber(rawConfig.durationMs, 1000, DAY_MS, 5 * 60 * 1000),
-    scheduleStart: isValidHHMM(rawConfig.scheduleStart) ? rawConfig.scheduleStart : "11:00",
+    scheduleStart: isValidHHMM(rawConfig.scheduleStart) ? rawConfig.scheduleStart : "09:00",
     intervalMs: clampNumber(rawConfig.intervalMs, 1000, DAY_MS, 5 * 60 * 1000),
     offsetBeforeMs: clampNumber(rawConfig.offsetBeforeMs, 0, 60 * 60 * 1000, 0),
     endTime: isValidHHMM(rawConfig.endTime) ? rawConfig.endTime : "",
-    maxTriggers: clampNumber(rawConfig.maxTriggers, 0, 999, 1),
+    maxTriggers: clampNumber(rawConfig.maxTriggers, 0, 999, 0),
     sound: {
       ...defaultSoundConfig(),
       ...soundRaw,
@@ -68,9 +160,9 @@ function normalizeTimerConfig(rawConfig = {}, id = 0) {
         ? soundRaw.waveType
         : "sine",
       volume: clampNumber(soundRaw.volume, 0, 1, 0.5),
-      durationMs: clampNumber(soundRaw.durationMs, 50, 10000, 320),
-      repeatCount: clampNumber(soundRaw.repeatCount, 1, 50, 2),
-      pauseBetweenMs: clampNumber(soundRaw.pauseBetweenMs, 0, 5000, 140),
+      durationMs: clampNumber(soundRaw.durationMs, 10, 10000, 250),
+      repeatCount: clampNumber(soundRaw.repeatCount, 1, 50, 1),
+      pauseBetweenMs: clampNumber(soundRaw.pauseBetweenMs, 0, 5000, 0),
     },
   };
   return config;
@@ -199,29 +291,36 @@ class Timer {
   formatMeta(nowMs) {
     if (this.config.mode === "countdown") {
       if (this.runtime.status === "completed") {
-        return `Ausloesungen: ${this.runtime.triggerCount}`;
+        return `Triggers: ${this.runtime.triggerCount}`;
       }
       return `Countdown: ${Math.round(this.config.durationMs / 1000)}s`;
     }
     const endLabel = this.config.endTime || "--:--";
     const remainingTriggers = this.config.maxTriggers === 0
-      ? "unbegrenzt"
+      ? "unlimited"
       : Math.max(0, this.config.maxTriggers - this.runtime.triggerCount);
     if (this.runtime.status === "running") {
       const next = this.runtime.nextTriggerMs
-        ? new Date(this.runtime.nextTriggerMs).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+        ? new Date(this.runtime.nextTriggerMs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         : "--:--:--";
-      return `Naechster: ${next} | Ende: ${endLabel} | Rest: ${remainingTriggers}`;
+      return `Next: ${next} | End: ${endLabel} | Remaining: ${remainingTriggers}`;
     }
-    return `Start: ${this.config.scheduleStart} | Intervall: ${Math.round(this.config.intervalMs / 1000)}s | Ende: ${endLabel}`;
+    return `Start: ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}`;
   }
 
   snapshot(nowMs) {
     let remainingMs = 0;
+    let progressPercent = 0;
+    let progressBaseMs = this.config.durationMs;
     if (this.config.mode === "countdown") {
       remainingMs = Math.max(0, this.runtime.countdownTargetMs - nowMs);
+      progressBaseMs = this.config.durationMs;
     } else if (this.runtime.nextTriggerMs !== null) {
       remainingMs = Math.max(0, (this.runtime.nextTriggerMs - this.config.offsetBeforeMs) - nowMs);
+      progressBaseMs = this.config.intervalMs;
+    }
+    if (this.runtime.status === "running" || this.runtime.status === "paused") {
+      progressPercent = Math.min(100, Math.max(0, (remainingMs / Math.max(1, progressBaseMs)) * 100));
     }
     return {
       id: this.id,
@@ -229,6 +328,7 @@ class Timer {
       status: this.runtime.status,
       triggerCount: this.runtime.triggerCount,
       remainingMs,
+      progressPercent,
       nextTriggerMs: this.runtime.nextTriggerMs,
       endAtMs: this.runtime.endAtMs,
       metaText: this.formatMeta(nowMs),
@@ -288,7 +388,11 @@ class Timer {
 class TimerManager {
   constructor({ maxTimers = MAX_TIMERS } = {}) {
     this.maxTimers = clampNumber(maxTimers, 1, MAX_TIMERS, MAX_TIMERS);
-    this.timers = Array.from({ length: this.maxTimers }, (_, index) => new Timer(index, {}));
+    this.defaultConfigs = Array.from({ length: this.maxTimers }, (_, index) => getDefaultPresetByIndex(index));
+    this.timers = Array.from(
+      { length: this.maxTimers },
+      (_, index) => new Timer(index, this.defaultConfigs[index] || {}),
+    );
     this.listeners = new Map();
   }
 
@@ -310,6 +414,13 @@ class TimerManager {
 
   getTimer(timerId) {
     return this.timers.find((timer) => timer.id === timerId) || null;
+  }
+
+  getDefaultConfig(timerId) {
+    if (timerId < 0 || timerId >= this.maxTimers) {
+      return {};
+    }
+    return deepClone(this.defaultConfigs[timerId] || {});
   }
 
   getAllSnapshots(nowMs = Date.now()) {
@@ -361,6 +472,15 @@ class TimerManager {
     this.emit("timer-status-changed", { timerId, status: timer.runtime.status });
   }
 
+  resetTimerToDefault(timerId) {
+    const timer = this.getTimer(timerId);
+    if (!timer) {
+      return;
+    }
+    timer.setConfig(this.getDefaultConfig(timerId));
+    this.emit("timer-status-changed", { timerId, status: timer.runtime.status });
+  }
+
   startAll(nowMs) {
     this.timers.forEach((timer) => timer.start(nowMs));
     this.emit("all-status-changed", { action: "startAll" });
@@ -379,6 +499,13 @@ class TimerManager {
   stopAll() {
     this.timers.forEach((timer) => timer.stop());
     this.emit("all-status-changed", { action: "stopAll" });
+  }
+
+  resetAllToDefaults() {
+    this.timers.forEach((timer, index) => {
+      timer.setConfig(this.getDefaultConfig(index));
+    });
+    this.emit("all-status-changed", { action: "resetAllToDefaults" });
   }
 
   tick(nowMs) {
@@ -412,7 +539,7 @@ class TimerManager {
       timer.setConfig(raw);
     });
     for (let i = rawTimers.length; i < this.maxTimers; i += 1) {
-      this.timers[i].setConfig({});
+      this.timers[i].setConfig(this.getDefaultConfig(i));
     }
     this.emit("configs-imported", { count: Math.min(rawTimers.length, this.maxTimers) });
   }
