@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>TimerTool</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="brand">
+        <h1>TimerTool</h1>
+        <p>Flexible browser-only timer suite</p>
+      </div>
+      <div class="header-clock">
+        <div class="clock-label">Realtime</div>
+        <div class="clock-value" id="clock-display">--:--:--.-</div>
+      </div>
+    </header>
+
+    <section class="control-strip">
+      <label class="control-group">
+        <span>Timezone</span>
+        <select id="timezone-select" aria-label="Zeitzone waehlen">
+          <option value="__local__">Local (System)</option>
+          <option value="Europe/Berlin">Europe/Berlin</option>
+          <option value="UTC">UTC</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="Asia/Tokyo">Asia/Tokyo</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="global-actions">
+      <button id="start-all-btn" class="btn btn-primary" type="button">Start All</button>
+      <button id="pause-all-btn" class="btn btn-secondary" type="button">Pause All</button>
+      <button id="resume-all-btn" class="btn btn-secondary" type="button">Resume All</button>
+      <button id="reset-all-btn" class="btn btn-danger" type="button">Reset All</button>
+      <button id="save-json-btn" class="btn btn-secondary" type="button">Save JSON</button>
+      <button id="load-json-btn" class="btn btn-secondary" type="button">Load JSON</button>
+      <input id="json-file-input" type="file" accept="application/json,.json" hidden>
+    </section>
+
+    <main class="timers-wrapper">
+      <div id="timers-grid" class="timers-grid" aria-label="Timer Uebersicht"></div>
+    </main>
+
+    <section class="ntp-panel">
+      <div class="ntp-panel-head">NTP Sync (optional)</div>
+      <div class="ntp-panel-row">
+        <label class="control-group">
+          <span>NTP Sync (Min.)</span>
+          <input id="ntp-interval-minutes" type="number" min="1" max="240" step="1" value="30" aria-label="NTP Intervall in Minuten">
+        </label>
+        <button id="sync-now-btn" class="btn btn-secondary" type="button">Sync Now</button>
+        <span class="sync-status" id="sync-status">Zeitquelle: Systemzeit</span>
+      </div>
+    </section>
+
+    <footer class="app-footer">
+      <span>Creator: INGBMS - S.M.Art</span>
+      <span>License: CC BY-NC-SA 4.0</span>
+    </footer>
+  </div>
+
+  <dialog id="timer-config-modal" class="config-modal">
+    <form id="timer-config-form" method="dialog" novalidate>
+      <h2 id="config-title">Timer konfigurieren</h2>
+      <input id="config-timer-id" type="hidden">
+
+      <label class="modal-field">
+        <span>Name</span>
+        <input id="config-name" type="text" maxlength="30" required>
+      </label>
+
+      <label class="modal-field">
+        <span>Mode</span>
+        <select id="config-mode">
+          <option value="countdown">Countdown</option>
+          <option value="schedule">Fixed Time + Interval</option>
+        </select>
+      </label>
+
+      <section id="countdown-fields" class="modal-section">
+        <label class="modal-field">
+          <span>Countdown Duration (seconds)</span>
+          <input id="config-duration-seconds" type="number" min="1" max="86400" step="1">
+        </label>
+      </section>
+
+      <section id="schedule-fields" class="modal-section">
+        <label class="modal-field">
+          <span>Base Time (HH:MM)</span>
+          <input id="config-schedule-start" type="time" step="60">
+        </label>
+        <label class="modal-field">
+          <span>Repeat every (seconds)</span>
+          <input id="config-interval-seconds" type="number" min="1" max="86400" step="1">
+        </label>
+        <label class="modal-field">
+          <span>Offset before trigger (seconds)</span>
+          <input id="config-offset-seconds" type="number" min="0" max="3600" step="1">
+        </label>
+        <label class="modal-field">
+          <span>End Time (optional)</span>
+          <input id="config-end-time" type="time" step="60">
+        </label>
+      </section>
+
+      <label class="modal-field">
+        <span>Max Triggers (0 = unlimited)</span>
+        <input id="config-max-triggers" type="number" min="0" max="999" step="1">
+      </label>
+
+      <section class="modal-section">
+        <label class="modal-checkbox">
+          <input id="config-sound-enabled" type="checkbox">
+          <span>Sound enabled</span>
+        </label>
+        <label class="modal-field">
+          <span>Sound Type</span>
+          <select id="config-sound-type">
+            <option value="beep">Beep (WebAudio)</option>
+            <option value="file">Audio file URL</option>
+          </select>
+        </label>
+        <label class="modal-field" id="file-url-wrapper">
+          <span>Audio File URL</span>
+          <input id="config-sound-file-url" type="url" placeholder="https://.../sound.mp3">
+        </label>
+        <label class="modal-field">
+          <span>Frequency (Hz)</span>
+          <input id="config-sound-frequency" type="number" min="100" max="2000" step="10">
+        </label>
+        <label class="modal-field">
+          <span>Waveform</span>
+          <select id="config-sound-wave-type">
+            <option value="sine">sine</option>
+            <option value="square">square</option>
+            <option value="triangle">triangle</option>
+            <option value="sawtooth">sawtooth</option>
+          </select>
+        </label>
+        <label class="modal-field">
+          <span>Volume</span>
+          <input id="config-sound-volume" type="range" min="0" max="1" step="0.05">
+        </label>
+        <label class="modal-field">
+          <span>Burst Duration (ms)</span>
+          <input id="config-sound-duration" type="number" min="50" max="10000" step="10">
+        </label>
+        <label class="modal-field">
+          <span>Burst Count</span>
+          <input id="config-sound-repeat-count" type="number" min="1" max="50" step="1">
+        </label>
+        <label class="modal-field">
+          <span>Pause Between Bursts (ms)</span>
+          <input id="config-sound-pause-between" type="number" min="0" max="5000" step="10">
+        </label>
+      </section>
+
+      <menu class="modal-actions">
+        <button id="modal-cancel-btn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="modal-save-btn" class="btn btn-primary" type="submit">Save Timer</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="js/timer.js"></script>
+  <script src="js/ntp.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
