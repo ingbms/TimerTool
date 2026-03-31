@@ -2,6 +2,7 @@ const COOKIE_CHUNK_PREFIX = "timertool_state_chunk_";
 const COOKIE_CHUNK_COUNT_KEY = "timertool_state_chunk_count";
 const LOCAL_STORAGE_KEY = "timertool_state_v1";
 const COOKIE_CHUNK_SIZE = 3500;
+const COOKIE_STORAGE_BUDGET_BYTES = 81920;
 const EXPORT_VERSION = "1.0.0";
 
 function getCookie(name) {
@@ -62,9 +63,28 @@ function readChunkedCookie() {
   return data;
 }
 
+function readLocalStorageStateRaw() {
+  try {
+    return localStorage.getItem(LOCAL_STORAGE_KEY) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
 function toTimestampLabel(date = new Date()) {
   const pad = (value) => String(value).padStart(2, "0");
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function byteLength(value) {
+  const text = String(value || "");
+  if (!text) {
+    return 0;
+  }
+  if (typeof TextEncoder !== "undefined") {
+    return new TextEncoder().encode(text).length;
+  }
+  return unescape(encodeURIComponent(text)).length;
 }
 
 class StorageService {
@@ -111,6 +131,21 @@ class StorageService {
       return undefined;
     }
     return undefined;
+  }
+
+  getCookieStorageStats() {
+    const cookieSerialized = readChunkedCookie();
+    const serialized = cookieSerialized || readLocalStorageStateRaw();
+    const usedBytes = byteLength(serialized);
+    const totalBytes = COOKIE_STORAGE_BUDGET_BYTES;
+    const percentUsed = totalBytes > 0 ? Math.min(100, (usedBytes / totalBytes) * 100) : 0;
+
+    return {
+      usedBytes,
+      totalBytes,
+      percentUsed,
+      source: cookieSerialized ? "cookie" : (serialized ? "localStorage-fallback" : "none"),
+    };
   }
 
   exportToJson(stateObject) {

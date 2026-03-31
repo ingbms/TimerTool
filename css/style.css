@@ -340,6 +340,34 @@ body {
   padding: 0.9rem 1.2rem;
 }
 
+.cookie-panel {
+  border-top: 1px solid rgba(122, 168, 212, 0.2);
+  padding: 0.75rem 1.2rem;
+}
+
+.cookie-stats-button {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(134, 176, 220, 0.34);
+  border-radius: 10px;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  background: rgba(7, 19, 33, 0.75);
+  color: var(--text-muted);
+  font: inherit;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.cookie-stats-button:hover,
+.cookie-stats-button:focus-visible {
+  border-color: rgba(137, 185, 234, 0.55);
+  color: var(--text-main);
+  background: rgba(10, 25, 43, 0.86);
+}
+
 .config-modal {
   width: min(680px, 94vw);
   border: 1px solid rgba(126, 167, 208, 0.4);
@@ -351,6 +379,47 @@ body {
 
 .config-modal::backdrop {
   background: rgba(1, 8, 15, 0.68);
+}
+
+.policy-modal {
+  width: min(660px, 94vw);
+  border: 1px solid rgba(126, 167, 208, 0.4);
+  border-radius: 14px;
+  background: linear-gradient(160deg, #0b1b2f, #10253e);
+  color: var(--text-main);
+  padding: 0;
+}
+
+.policy-modal::backdrop {
+  background: rgba(1, 8, 15, 0.72);
+}
+
+.policy-content {
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.policy-header h2 {
+  margin: 0;
+}
+
+.policy-body {
+  display: grid;
+  gap: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.policy-body p {
+  margin: 0;
+}
+
+.policy-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.2rem 0 0;
+  padding: 0;
 }
 
 #timer-config-form {

@@ -1,17 +1,18 @@
 {
   "exportVersion": "1.0.0",
-  "exportDate": "2026-03-30T21:27:02.688Z",
+  "exportDate": "2026-03-30T23:30:40.426Z",
   "timers": [
     {
       "id": 0,
       "name": "Timer5",
       "mode": "schedule",
-      "durationMs": 3000,
+      "durationMs": 300000,
       "scheduleStart": "08:45",
       "intervalMs": 300000,
       "offsetBeforeMs": 5000,
       "endTime": "22:45",
       "maxTriggers": 0,
+      "autostart": true,
       "sound": {
         "enabled": true,
         "type": "beep",
@@ -35,6 +36,7 @@
       "offsetBeforeMs": 10000,
       "endTime": "22:45",
       "maxTriggers": 0,
+      "autostart": true,
       "sound": {
         "enabled": true,
         "type": "beep",
@@ -53,11 +55,12 @@
       "name": "Timer30",
       "mode": "schedule",
       "durationMs": 300000,
-      "scheduleStart": "08:45",
+      "scheduleStart": "08:30",
       "intervalMs": 1800000,
       "offsetBeforeMs": 15000,
       "endTime": "22:45",
       "maxTriggers": 0,
+      "autostart": true,
       "sound": {
         "enabled": true,
         "type": "beep",
@@ -81,6 +84,7 @@
       "offsetBeforeMs": 25000,
       "endTime": "22:45",
       "maxTriggers": 0,
+      "autostart": false,
       "sound": {
         "enabled": true,
         "type": "beep",

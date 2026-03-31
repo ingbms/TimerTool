@@ -32,6 +32,72 @@ function ensureDependencies() {
   }
 }
 
+const SOURCE_FILES_FOR_TIMESTAMP = [
+  "index.html",
+  "css/style.css",
+  "css/animations.css",
+  "js/main.js",
+  "js/timer.js",
+  "js/ui.js",
+  "js/ntp.js",
+  "js/audio.js",
+  "js/storage.js",
+];
+
+function formatIsoLocalWithOffset(epochMs) {
+  const date = new Date(epochMs);
+  const pad2 = (value) => String(value).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad2(date.getMonth() + 1);
+  const day = pad2(date.getDate());
+  const hours = pad2(date.getHours());
+  const minutes = pad2(date.getMinutes());
+  const seconds = pad2(date.getSeconds());
+
+  const offsetMinutesTotal = -date.getTimezoneOffset();
+  const offsetSign = offsetMinutesTotal >= 0 ? "+" : "-";
+  const offsetHours = pad2(Math.floor(Math.abs(offsetMinutesTotal) / 60));
+  const offsetMinutes = pad2(Math.abs(offsetMinutesTotal) % 60);
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMinutes}`;
+}
+
+async function getSourceLastModifiedMs(path) {
+  const cacheBust = Date.now();
+  try {
+    const response = await fetch(`${path}?v=${cacheBust}`, { method: "HEAD", cache: "no-store" });
+    if (!response.ok) {
+      return null;
+    }
+    const lastModified = response.headers.get("last-modified");
+    const epochMs = Date.parse(String(lastModified || ""));
+    return Number.isFinite(epochMs) ? epochMs : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function updateBuildTimestamp() {
+  const timestampEl = document.getElementById("build-timestamp");
+  if (!timestampEl) {
+    return;
+  }
+
+  let bestEpochMs = Date.parse(String(document.lastModified || ""));
+  if (!Number.isFinite(bestEpochMs)) {
+    bestEpochMs = Date.now();
+  }
+
+  const sourceTimes = await Promise.all(SOURCE_FILES_FOR_TIMESTAMP.map((path) => getSourceLastModifiedMs(path)));
+  sourceTimes.forEach((epochMs) => {
+    if (Number.isFinite(epochMs) && epochMs > bestEpochMs) {
+      bestEpochMs = epochMs;
+    }
+  });
+
+  timestampEl.textContent = formatIsoLocalWithOffset(bestEpochMs);
+  timestampEl.setAttribute("datetime", new Date(bestEpochMs).toISOString());
+}
+
 async function init() {
   ensureDependencies();
 
@@ -49,13 +115,22 @@ async function init() {
 
   const initialIntervalMs = Number(savedSettings.ntpIntervalMs) || window.DEFAULT_SYNC_INTERVAL_MS;
   const ntp = new window.NtpSynchronizer({ enabled: true, syncIntervalMs: initialIntervalMs });
+  let ui = null;
 
-  const ui = new window.UIController({
+  const persistState = () => {
+    if (!ui) {
+      return;
+    }
+    storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+    ui.updateCookieStats(storageService.getCookieStorageStats());
+  };
+
+  ui = new window.UIController({
     timerManager,
     handlers: {
       startTimer: (timerId) => {
         timerManager.startTimer(timerId, ntp.now());
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       toggleStartStop: (timerId) => {
         const timer = timerManager.getTimer(timerId);
@@ -68,21 +143,21 @@ async function init() {
         } else {
           timerManager.startTimer(timerId, ntp.now());
         }
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       resetTimer: (timerId) => {
         timerManager.resetTimerToDefault(timerId);
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
         ui.showToast(`Timer ${timerId + 1} reset to default.`);
       },
       saveTimerConfig: (timerId, configPatch) => {
         timerManager.updateTimerConfig(timerId, configPatch);
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
         ui.showToast(`Timer ${timerId + 1} saved.`);
       },
       startAll: () => {
         timerManager.startAll(ntp.now());
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       resetAll: () => {
         const confirmed = window.confirm("Reset all timers?");
@@ -90,7 +165,7 @@ async function init() {
           return;
         }
         timerManager.resetAllToDefaults();
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
         ui.showToast("All timers reset to defaults.");
       },
       syncNow: async () => {
@@ -99,19 +174,19 @@ async function init() {
       },
       setTimezone: (timezone) => {
         ui.timezone = timezone || "__local__";
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       setGlobalToneDisabled: (disabled) => {
         ui.globalToneDisabled = Boolean(disabled);
         if (ui.globalToneDisabled) {
           audioController.stopAll();
         }
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       setNtpIntervalMinutes: (minutes) => {
         const safeMinutes = normalizeIntervalMinutes(minutes);
         ntp.setSyncIntervalMs(safeMinutes * 60 * 1000);
-        storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+        persistState();
       },
       saveJson: () => {
         const payload = getPersistPayload(timerManager, ui, ntp);
@@ -146,7 +221,7 @@ async function init() {
             audioController.stopAll();
           }
 
-          storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+          persistState();
           ui.showToast("JSON imported.");
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
@@ -160,9 +235,10 @@ async function init() {
     timezone: String(savedSettings.timezone || "__local__"),
     ntpIntervalMinutes: Math.round(initialIntervalMs / 60000),
     globalToneDisabled: Boolean(savedSettings.globalToneDisabled),
+    cookieStats: storageService.getCookieStorageStats(),
   });
 
-  storageService.saveState(getPersistPayload(timerManager, ui, ntp));
+  persistState();
 
   ntp.onStatusChange((status) => ui.updateSyncStatus(status));
 
@@ -189,6 +265,7 @@ async function init() {
   requestAnimationFrame(mainLoop);
   ntp.start().catch(() => undefined);
   ui.updateSyncStatus(ntp.getStatusSnapshot());
+  updateBuildTimestamp().catch(() => undefined);
 }
 
 init().catch((error) => {

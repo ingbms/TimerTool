@@ -6,6 +6,7 @@ Alle Inhalte sind auf den realen Stand von `index.html`, `js/main.js`, `js/timer
 ## Inhalt
 
 - [Schnellstart](#schnellstart)
+- [Best Practice fuer zuverlaessige Alarme](#best-practice-fuer-zuverlaessige-alarme)
 - [Systemueberblick](#systemueberblick)
 - [Screenshots](#screenshots)
 - [Konfigurationsreferenz](KONFIGURATION.md)
@@ -18,6 +19,19 @@ Alle Inhalte sind auf den realen Stand von `index.html`, `js/main.js`, `js/timer
 3. Pro Timer `Config` oeffnen und Modus/Felder setzen.
 4. Mit `Start` (pro Timer) oder `Start All` starten.
 5. Mit `Save JSON` Konfiguration exportieren und mit `Load JSON` wieder importieren.
+
+## Best Practice fuer zuverlaessige Alarme
+
+Damit Timer und Alarme moeglichst zuverlaessig ausgeloest werden, sollte TimerTool waehrend der Laufzeit sichtbar und aktiv bleiben:
+
+- Browserfenster nicht minimieren
+- TimerTool-Tab im Vordergrund geoeffnet lassen
+- Geraet nicht sperren und Bildschirm nicht ausschalten
+- Energiesparmodus / Akku-Optimierung moeglichst deaktivieren
+- Browser das Abspielen von Ton erlauben
+- Wenn moeglich: Benachrichtigungen fuer die Website zulassen
+
+Wichtig: Hintergrund-Tabs, minimierte Fenster, Energiesparfunktionen oder gesperrte Geraete koennen Timer verzoegern oder Alarme verhindern.
 
 ## Systemueberblick
 

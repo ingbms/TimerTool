@@ -103,8 +103,12 @@ class UIController {
     this.fileUrlWrapperEl = document.getElementById("file-url-wrapper");
     this.fileMaxSecondsWrapperEl = document.getElementById("file-max-seconds-wrapper");
     this.formSoundTypeEl = document.getElementById("config-sound-type");
+    this.cookieStatsButtonEl = document.getElementById("cookie-stats-button");
+    this.cookiePolicyModalEl = document.getElementById("cookie-policy-modal");
+    this.cookiePolicyCloseBtnEl = document.getElementById("cookie-policy-close-btn");
 
     this.wireGlobalControls();
+    this.wirePolicyControls();
     this.wireModalControls();
     this.wireGridEvents();
   }
@@ -165,6 +169,29 @@ class UIController {
     });
   }
 
+  wirePolicyControls() {
+    this.cookieStatsButtonEl?.addEventListener("click", () => {
+      this.cookiePolicyModalEl?.showModal();
+    });
+
+    this.cookiePolicyCloseBtnEl?.addEventListener("click", () => {
+      this.cookiePolicyModalEl?.close();
+    });
+
+    this.cookiePolicyModalEl?.addEventListener("click", (event) => {
+      const rect = this.cookiePolicyModalEl.getBoundingClientRect();
+      const isOutside = (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      );
+      if (isOutside) {
+        this.cookiePolicyModalEl.close();
+      }
+    });
+  }
+
   wireModalControls() {
     document.getElementById("modal-cancel-btn").addEventListener("click", () => this.closeConfigModal());
     document.getElementById("modal-reset-btn").addEventListener("click", () => {
@@ -201,6 +228,9 @@ class UIController {
 
     this.gridEl.innerHTML = initialSnapshots.map((snapshot) => timerCardTemplate(snapshot)).join("");
     this.renderSnapshots(initialSnapshots);
+    if (settings.cookieStats) {
+      this.updateCookieStats(settings.cookieStats);
+    }
   }
 
   renderSnapshots(snapshots) {
@@ -254,6 +284,27 @@ class UIController {
       this.syncStatusEl.classList.add("is-fallback");
     }
     this.syncStatusEl.textContent = statusTextValue;
+  }
+
+  updateCookieStats(cookieStats = {}) {
+    if (!this.cookieStatsButtonEl) {
+      return;
+    }
+    const usedBytes = Math.max(0, Number(cookieStats.usedBytes) || 0);
+    const totalBytes = Math.max(1, Number(cookieStats.totalBytes) || 1);
+    const percent = Math.min(100, Math.max(0, Number(cookieStats.percentUsed) || 0));
+    const usedKb = usedBytes / 1024;
+    const totalKb = totalBytes / 1024;
+    const label = `Cookies ${usedKb.toFixed(1)}kB of ${totalKb.toFixed(1)}kB, ${percent.toFixed(1)}%`;
+    this.cookieStatsButtonEl.textContent = label;
+    const source = String(cookieStats.source || "cookie");
+    const sourceHint = source === "localStorage-fallback"
+      ? " (localStorage fallback)"
+      : "";
+    this.cookieStatsButtonEl.setAttribute("aria-label", `${label}${sourceHint}. Cookie-Richtlinie anzeigen.`);
+    this.cookieStatsButtonEl.title = source === "localStorage-fallback"
+      ? "Cookie im aktuellen Kontext nicht lesbar, Anzeige basiert auf lokal gespeichertem Zustand."
+      : "Anzeige basiert auf Cookie-Speicher.";
   }
 
   openConfigModal(timerId) {

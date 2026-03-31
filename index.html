@@ -64,8 +64,14 @@
       </div>
     </section>
 
+    <section class="cookie-panel" aria-label="Cookie usage">
+      <button id="cookie-stats-button" class="cookie-stats-button" type="button" aria-haspopup="dialog">
+        Cookies 0.0kB of 80.0kB, 0.0%
+      </button>
+    </section>
+
     <footer class="app-footer">
-      <span>Creator: INGBMS - S.MArt — <time>2026-03-30T23:19:09+02:00</time></span>
+      <span>Creator: INGBMS - S.MArt — <time id="build-timestamp">--</time></span>
       <span>License: CC BY-NC-SA 4.0</span>
     </footer>
   </div>
@@ -180,6 +186,43 @@
         <button id="modal-save-btn" class="btn btn-primary" type="submit">Save Timer</button>
       </menu>
     </form>
+  </dialog>
+
+  <dialog id="cookie-policy-modal" class="policy-modal" aria-labelledby="cookie-policy-title">
+    <article class="policy-content">
+      <header class="policy-header">
+        <h2 id="cookie-policy-title">Cookie-Richtlinie</h2>
+      </header>
+      <div class="policy-body">
+        <p><strong>Deutsch</strong></p>
+        <p>
+          TimerTool verwendet ausschliesslich technisch notwendige First-Party-Cookies, um Timer-Konfigurationen
+          und App-Einstellungen direkt im Browser zu speichern.
+        </p>
+        <p>
+          Es werden keine Werbe-, Profiling- oder Third-Party-Tracking-Cookies gesetzt.
+          Die Daten bleiben lokal auf Ihrem Geraet und werden von dieser App nicht an ein Backend uebertragen.
+        </p>
+        <p>
+          Cookie-Eintraege werden mit einer maximalen Gueltigkeit von bis zu 12 Monaten gespeichert und koennen
+          jederzeit durch Loeschen der Browser-Website-Daten entfernt werden.
+        </p>
+        <p><strong>English (Translation)</strong></p>
+        <p>
+          TimerTool only uses essential first-party cookies to store timer configurations and app settings directly in your browser.
+        </p>
+        <p>
+          No advertising, profiling, or third-party tracking cookies are set.
+          Data remains on your device and is not sent to a backend by this app.
+        </p>
+        <p>
+          Cookie entries are stored for up to 12 months and can be removed at any time by clearing site data in your browser.
+        </p>
+      </div>
+      <footer class="policy-actions">
+        <button id="cookie-policy-close-btn" class="btn btn-secondary" type="button">Schliessen</button>
+      </footer>
+    </article>
   </dialog>
 
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
