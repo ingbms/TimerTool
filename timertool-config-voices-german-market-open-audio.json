@@ -1,0 +1,107 @@
+{
+  "exportVersion": "1.0.0",
+  "exportDate": "2026-03-30T23:31:01.729Z",
+  "timers": [
+    {
+      "id": 0,
+      "name": "TimerMarkeOpensIn5Min",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "08:55",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 5000,
+      "endTime": "09:00",
+      "maxTriggers": 1,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "file",
+        "fileUrl": "sounds/Der_Markt_öffnet_in_5_Minuten_de_DE-thorsten-high.wav",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 440,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 250,
+        "repeatCount": 1,
+        "pauseBetweenMs": 0
+      }
+    },
+    {
+      "id": 1,
+      "name": "TimerMarketIsNowOpen",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "09:00",
+      "intervalMs": 900000,
+      "offsetBeforeMs": 10000,
+      "endTime": "10:00",
+      "maxTriggers": 1,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "file",
+        "fileUrl": "sounds/Der_Markt_ist_nun_geöffnet_de_DE-thorsten-high.wav",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 1440,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 150,
+        "repeatCount": 2,
+        "pauseBetweenMs": 100
+      }
+    },
+    {
+      "id": 2,
+      "name": "Timer30",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "08:45",
+      "intervalMs": 1800000,
+      "offsetBeforeMs": 15000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": false,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 1720,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 10,
+        "repeatCount": 4,
+        "pauseBetweenMs": 100
+      }
+    },
+    {
+      "id": 3,
+      "name": "Timer60",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "08:45",
+      "intervalMs": 3600000,
+      "offsetBeforeMs": 25000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": false,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 220,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 10,
+        "repeatCount": 5,
+        "pauseBetweenMs": 100
+      }
+    }
+  ],
+  "settings": {
+    "timezone": "__local__",
+    "ntpIntervalMs": 1800000,
+    "globalToneDisabled": false
+  }
+}
