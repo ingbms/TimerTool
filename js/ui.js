@@ -144,7 +144,8 @@ class UIController {
     this.visualBellTimeoutsByElement = new WeakMap();
 
     this.gridEl = document.getElementById("timers-grid");
-    this.clockLabelEl = document.getElementById("clock-label");
+    this.clockLabelEl = document.getElementById("clock-label")
+      || document.querySelector(".header-clock .clock-label");
     this.clockEl = document.getElementById("clock-display");
     this.lastRenderedClockLabelTimezone = null;
     this.syncStatusEl = document.getElementById("sync-status");
