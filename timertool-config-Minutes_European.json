@@ -1,6 +1,6 @@
 {
   "exportVersion": "1.0.0",
-  "exportDate": "2026-04-01T21:38:41.604Z",
+  "exportDate": "2026-04-01T22:14:37.336Z",
   "timers": [
     {
       "id": 0,
@@ -103,7 +103,7 @@
     "timezone": "__local__",
     "ntpIntervalMs": 1800000,
     "globalToneDisabled": false,
-    "globalVisualBellEnabled": true,
+    "globalVisualBellEnabled": false,
     "visualBellConfig": {
       "count": 3,
       "lengthMs": 330,

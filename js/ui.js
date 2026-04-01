@@ -144,7 +144,9 @@ class UIController {
     this.visualBellTimeoutsByElement = new WeakMap();
 
     this.gridEl = document.getElementById("timers-grid");
+    this.clockLabelEl = document.getElementById("clock-label");
     this.clockEl = document.getElementById("clock-display");
+    this.lastRenderedClockLabelTimezone = null;
     this.syncStatusEl = document.getElementById("sync-status");
     this.toastContainerEl = document.getElementById("toast-container");
     this.headerEl = document.querySelector(".app-header");
@@ -188,6 +190,7 @@ class UIController {
 
     this.timezoneSelectEl?.addEventListener("change", (event) => {
       this.timezone = String(event.target.value || "__local__");
+      this.updateClockLabel();
       this.handlers.setTimezone(this.timezone);
     });
 
@@ -334,6 +337,7 @@ class UIController {
         this.timezoneSelectEl.value = "__local__";
       }
     }
+    this.updateClockLabel();
     if (settings.ntpIntervalMinutes) {
       document.getElementById("ntp-interval-minutes").value = String(settings.ntpIntervalMinutes);
     }
@@ -380,7 +384,22 @@ class UIController {
   }
 
   updateClock(epochMs) {
+    this.updateClockLabel();
     this.clockEl.textContent = formatClockForTimezone(epochMs, this.timezone);
+  }
+
+  updateClockLabel() {
+    if (!this.clockLabelEl) {
+      return;
+    }
+    const timezone = this.timezone || "__local__";
+    if (this.lastRenderedClockLabelTimezone === timezone) {
+      return;
+    }
+    this.lastRenderedClockLabelTimezone = timezone;
+    this.clockLabelEl.textContent = timezone === "__local__"
+      ? "Time (Local)"
+      : `Time (${timezone})`;
   }
 
   updateSyncStatus(statusSnapshot) {
