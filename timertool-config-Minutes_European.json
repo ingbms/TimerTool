@@ -4,7 +4,7 @@
   "timers": [
     {
       "id": 0,
-      "name": "Timer5",
+      "name": "Timer 5m",
       "mode": "schedule",
       "durationMs": 300000,
       "scheduleStart": "08:45",
@@ -28,7 +28,7 @@
     },
     {
       "id": 1,
-      "name": "Timer15",
+      "name": "Timer 15m",
       "mode": "schedule",
       "durationMs": 300000,
       "scheduleStart": "08:45",
@@ -52,7 +52,7 @@
     },
     {
       "id": 2,
-      "name": "Timer30",
+      "name": "Timer 30m",
       "mode": "schedule",
       "durationMs": 300000,
       "scheduleStart": "08:30",
@@ -76,7 +76,7 @@
     },
     {
       "id": 3,
-      "name": "Timer60",
+      "name": "Timer 60m",
       "mode": "schedule",
       "durationMs": 300000,
       "scheduleStart": "08:45",
