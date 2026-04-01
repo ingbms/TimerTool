@@ -27,10 +27,16 @@
     </main>
 
     <section class="global-actions">
-      <label class="global-tone-toggle" for="global-tone-disable">
-        <input id="global-tone-disable" type="checkbox">
-        <span>Global tone disable</span>
-      </label>
+      <div class="global-toggles">
+        <label class="global-tone-toggle" for="global-tone-disable">
+          <input id="global-tone-disable" type="checkbox">
+          <span>Global tone disable</span>
+        </label>
+        <div class="global-tone-toggle global-tone-toggle-configurable">
+          <input id="global-visual-bell" type="checkbox">
+          <button id="visual-bell-config-btn" class="toggle-text-button" type="button">Visual bell</button>
+        </div>
+      </div>
       <div class="global-actions-buttons">
         <button id="start-all-btn" class="btn btn-primary" type="button">Start All</button>
         <button id="reset-all-btn" class="btn btn-danger" type="button">Reset All</button>
@@ -223,6 +229,32 @@
         <button id="cookie-policy-close-btn" class="btn btn-secondary" type="button">Schliessen</button>
       </footer>
     </article>
+  </dialog>
+
+  <dialog id="visual-bell-config-modal" class="config-modal" aria-labelledby="visual-bell-config-title">
+    <form id="visual-bell-config-form" method="dialog" novalidate>
+      <h2 id="visual-bell-config-title">Visual Bell Config</h2>
+
+      <label class="modal-field">
+        <span>Count</span>
+        <input id="visual-bell-count" type="number" min="1" max="12" step="1">
+      </label>
+
+      <label class="modal-field">
+        <span>Length (ms)</span>
+        <input id="visual-bell-length-ms" type="number" min="10" max="5000" step="10">
+      </label>
+
+      <label class="modal-field">
+        <span>Pause (ms)</span>
+        <input id="visual-bell-pause-ms" type="number" min="0" max="5000" step="10">
+      </label>
+
+      <menu class="modal-actions">
+        <button id="visual-bell-cancel-btn" class="btn btn-secondary" type="button">Cancel</button>
+        <button id="visual-bell-save-btn" class="btn btn-primary" type="submit">Save</button>
+      </menu>
+    </form>
   </dialog>
 
   <div id="toast-container" class="toast-container" aria-live="polite"></div>

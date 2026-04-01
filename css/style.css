@@ -173,12 +173,39 @@ body {
   border-bottom: 1px solid rgba(122, 168, 212, 0.2);
 }
 
+.global-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
 .global-tone-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   min-height: 36px;
   color: var(--text-muted);
+}
+
+.global-tone-toggle-configurable {
+  gap: 0.35rem;
+}
+
+.toggle-text-button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.toggle-text-button:hover,
+.toggle-text-button:focus-visible {
+  color: var(--text-main);
 }
 
 .global-actions-buttons {
@@ -244,6 +271,11 @@ body {
   display: grid;
   gap: 0.75rem;
   min-height: 240px;
+}
+
+.app-header.visual-bell-on,
+.timer-card.visual-bell-on {
+  filter: invert(1);
 }
 
 .timer-head {

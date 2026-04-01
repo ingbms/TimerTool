@@ -1,0 +1,113 @@
+{
+  "exportVersion": "1.0.0",
+  "exportDate": "2026-04-01T20:25:12.386Z",
+  "timers": [
+    {
+      "id": 0,
+      "name": "Timer 5m",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "08:45",
+      "intervalMs": 300000,
+      "offsetBeforeMs": 2000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 432,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 250,
+        "repeatCount": 1,
+        "pauseBetweenMs": 0
+      }
+    },
+    {
+      "id": 1,
+      "name": "Timer 15m",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "08:45",
+      "intervalMs": 900000,
+      "offsetBeforeMs": 3000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 864,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 250,
+        "repeatCount": 1,
+        "pauseBetweenMs": 0
+      }
+    },
+    {
+      "id": 2,
+      "name": "Timer 30m",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "09:00",
+      "intervalMs": 1800000,
+      "offsetBeforeMs": 4000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 1728,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 250,
+        "repeatCount": 1,
+        "pauseBetweenMs": 0
+      }
+    },
+    {
+      "id": 3,
+      "name": "Timer 60m",
+      "mode": "schedule",
+      "durationMs": 300000,
+      "scheduleStart": "09:00",
+      "intervalMs": 3600000,
+      "offsetBeforeMs": 6000,
+      "endTime": "22:45",
+      "maxTriggers": 0,
+      "autostart": true,
+      "sound": {
+        "enabled": true,
+        "type": "beep",
+        "fileUrl": "",
+        "fileMaxDurationSeconds": 0,
+        "frequency": 1728,
+        "waveType": "sine",
+        "volume": 0.25,
+        "durationMs": 250,
+        "repeatCount": 1,
+        "pauseBetweenMs": 0
+      }
+    }
+  ],
+  "settings": {
+    "timezone": "__local__",
+    "ntpIntervalMs": 1800000,
+    "globalToneDisabled": false,
+    "globalVisualBellEnabled": true,
+    "visualBellConfig": {
+      "count": 3,
+      "lengthMs": 330,
+      "pauseMs": 250
+    }
+  }
+}

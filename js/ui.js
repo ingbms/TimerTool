@@ -61,6 +61,20 @@ function formatClockForTimezone(epochMs, timezone) {
   }
 }
 
+const DEFAULT_VISUAL_BELL_CONFIG = Object.freeze({
+  count: 3,
+  lengthMs: 330,
+  pauseMs: 250,
+});
+
+function normalizeVisualBellConfig(rawConfig = {}) {
+  return {
+    count: clampNumber(rawConfig.count, 1, 12, DEFAULT_VISUAL_BELL_CONFIG.count),
+    lengthMs: clampNumber(rawConfig.lengthMs, 10, 5000, DEFAULT_VISUAL_BELL_CONFIG.lengthMs),
+    pauseMs: clampNumber(rawConfig.pauseMs, 0, 5000, DEFAULT_VISUAL_BELL_CONFIG.pauseMs),
+  };
+}
+
 function timerCardTemplate(snapshot) {
   return `
     <article class="timer-card ${statusClass(snapshot.status)}" data-timer-id="${snapshot.id}">
@@ -87,15 +101,26 @@ class UIController {
     this.handlers = handlers;
     this.timezone = "__local__";
     this.globalToneDisabled = false;
+    this.globalVisualBellEnabled = false;
+    this.visualBellConfig = { ...DEFAULT_VISUAL_BELL_CONFIG };
+    this.visualBellTimeoutsByElement = new WeakMap();
 
     this.gridEl = document.getElementById("timers-grid");
     this.clockEl = document.getElementById("clock-display");
     this.syncStatusEl = document.getElementById("sync-status");
     this.toastContainerEl = document.getElementById("toast-container");
+    this.headerEl = document.querySelector(".app-header");
     this.modalEl = document.getElementById("timer-config-modal");
     this.formEl = document.getElementById("timer-config-form");
     this.fileInputEl = document.getElementById("json-file-input");
     this.globalToneDisableEl = document.getElementById("global-tone-disable");
+    this.globalVisualBellEl = document.getElementById("global-visual-bell");
+    this.visualBellConfigBtnEl = document.getElementById("visual-bell-config-btn");
+    this.visualBellConfigModalEl = document.getElementById("visual-bell-config-modal");
+    this.visualBellConfigFormEl = document.getElementById("visual-bell-config-form");
+    this.visualBellCountEl = document.getElementById("visual-bell-count");
+    this.visualBellLengthEl = document.getElementById("visual-bell-length-ms");
+    this.visualBellPauseEl = document.getElementById("visual-bell-pause-ms");
     this.formTimerIdEl = document.getElementById("config-timer-id");
     this.formModeEl = document.getElementById("config-mode");
     this.countdownFieldsEl = document.getElementById("countdown-fields");
@@ -108,6 +133,7 @@ class UIController {
     this.cookiePolicyCloseBtnEl = document.getElementById("cookie-policy-close-btn");
 
     this.wireGlobalControls();
+    this.wireVisualBellConfigControls();
     this.wirePolicyControls();
     this.wireModalControls();
     this.wireGridEvents();
@@ -145,6 +171,50 @@ class UIController {
     this.globalToneDisableEl?.addEventListener("change", (event) => {
       this.globalToneDisabled = Boolean(event.target.checked);
       this.handlers.setGlobalToneDisabled(this.globalToneDisabled);
+    });
+
+    this.globalVisualBellEl?.addEventListener("change", (event) => {
+      this.globalVisualBellEnabled = Boolean(event.target.checked);
+      if (!this.globalVisualBellEnabled) {
+        this.clearAllVisualBellSequences();
+      }
+      this.handlers.setGlobalVisualBellEnabled(this.globalVisualBellEnabled);
+    });
+  }
+
+  wireVisualBellConfigControls() {
+    this.visualBellConfigBtnEl?.addEventListener("click", () => {
+      this.openVisualBellConfigModal();
+    });
+
+    document.getElementById("visual-bell-cancel-btn")?.addEventListener("click", () => {
+      this.closeVisualBellConfigModal();
+    });
+
+    this.visualBellConfigFormEl?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const nextConfig = normalizeVisualBellConfig({
+        count: this.visualBellCountEl?.value,
+        lengthMs: this.visualBellLengthEl?.value,
+        pauseMs: this.visualBellPauseEl?.value,
+      });
+      this.visualBellConfig = nextConfig;
+      this.handlers.setVisualBellConfig(nextConfig);
+      this.closeVisualBellConfigModal();
+      this.showToast("Visual bell config saved.");
+    });
+
+    this.visualBellConfigModalEl?.addEventListener("click", (event) => {
+      const rect = this.visualBellConfigModalEl.getBoundingClientRect();
+      const isOutside = (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      );
+      if (isOutside) {
+        this.closeVisualBellConfigModal();
+      }
     });
   }
 
@@ -213,6 +283,8 @@ class UIController {
   initialize(initialSnapshots, settings = {}) {
     this.timezone = settings.timezone || this.timezone;
     this.globalToneDisabled = Boolean(settings.globalToneDisabled);
+    this.globalVisualBellEnabled = Boolean(settings.globalVisualBellEnabled);
+    this.visualBellConfig = normalizeVisualBellConfig(settings.visualBellConfig);
     const timezoneSelect = document.getElementById("timezone-select");
     timezoneSelect.value = this.timezone;
     if (timezoneSelect.value !== this.timezone) {
@@ -224,6 +296,9 @@ class UIController {
     }
     if (this.globalToneDisableEl) {
       this.globalToneDisableEl.checked = this.globalToneDisabled;
+    }
+    if (this.globalVisualBellEl) {
+      this.globalVisualBellEl.checked = this.globalVisualBellEnabled;
     }
 
     this.gridEl.innerHTML = initialSnapshots.map((snapshot) => timerCardTemplate(snapshot)).join("");
@@ -345,6 +420,17 @@ class UIController {
     this.modalEl.close();
   }
 
+  openVisualBellConfigModal() {
+    this.visualBellCountEl.value = String(this.visualBellConfig.count);
+    this.visualBellLengthEl.value = String(this.visualBellConfig.lengthMs);
+    this.visualBellPauseEl.value = String(this.visualBellConfig.pauseMs);
+    this.visualBellConfigModalEl?.showModal();
+  }
+
+  closeVisualBellConfigModal() {
+    this.visualBellConfigModalEl?.close();
+  }
+
   updateModeVisibility() {
     const isCountdown = this.formModeEl.value === "countdown";
     this.countdownFieldsEl.hidden = !isCountdown;
@@ -401,6 +487,62 @@ class UIController {
     setTimeout(() => {
       toast.remove();
     }, 2600);
+  }
+
+  triggerVisualBell(timerId) {
+    if (!this.globalVisualBellEnabled) {
+      return;
+    }
+    this.runVisualBellSequence(this.headerEl);
+    const timerCardEl = this.gridEl.querySelector(`.timer-card[data-timer-id="${timerId}"]`);
+    this.runVisualBellSequence(timerCardEl);
+  }
+
+  clearAllVisualBellSequences() {
+    this.clearVisualBellSequence(this.headerEl);
+    const timerCards = this.gridEl.querySelectorAll(".timer-card");
+    timerCards.forEach((card) => this.clearVisualBellSequence(card));
+  }
+
+  clearVisualBellSequence(element) {
+    if (!element) {
+      return;
+    }
+    const timeoutIds = this.visualBellTimeoutsByElement.get(element) || [];
+    timeoutIds.forEach((timeoutId) => clearTimeout(timeoutId));
+    this.visualBellTimeoutsByElement.delete(element);
+    element.classList.remove("visual-bell-on");
+  }
+
+  runVisualBellSequence(element) {
+    if (!element) {
+      return;
+    }
+    this.clearVisualBellSequence(element);
+
+    const timeoutIds = [];
+    const { count, lengthMs, pauseMs } = this.visualBellConfig;
+    const cycleMs = lengthMs + pauseMs;
+
+    for (let index = 0; index < count; index += 1) {
+      const startAtMs = cycleMs * index;
+      const stopAtMs = startAtMs + lengthMs;
+
+      timeoutIds.push(setTimeout(() => {
+        element.classList.add("visual-bell-on");
+      }, startAtMs));
+
+      timeoutIds.push(setTimeout(() => {
+        element.classList.remove("visual-bell-on");
+      }, stopAtMs));
+    }
+
+    const doneAtMs = cycleMs * (count - 1) + lengthMs;
+    timeoutIds.push(setTimeout(() => {
+      this.clearVisualBellSequence(element);
+    }, doneAtMs + 1));
+
+    this.visualBellTimeoutsByElement.set(element, timeoutIds);
   }
 }
 

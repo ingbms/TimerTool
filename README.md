@@ -59,13 +59,19 @@ Because this is a static site, it can be published directly via GitHub Pages.
 
 ## Use Cases
 
-TimerTool is suitable for any scenario requiring flexible, browser-based time management. Original use case: timing-critical financial trading operations; also useful for interval-based activities, reminders, and automated scheduling throughout the day.
+TimerTool is suitable for any scenario requiring flexible, browser-based time management. 
+Its original use case is timing-critical financial trading operations; 
+also useful for interval-based activities, reminders, and automated scheduling throughout the day.
 
 ## License & Disclaimer
 
 This project is provided as-is without warranty or guarantee of support. Use at your own discretion.
 
+## Support
+
+If this project is useful to you, a GitHub star is appreciated.
+
 ## Credits
 
-- Creator: INGBMS - S.M.Art
+- Creator: INGBMS - S.mArt
 - License: CC BY-NC-SA 4.0

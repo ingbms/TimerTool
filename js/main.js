@@ -5,7 +5,25 @@ function getPersistPayload(timerManager, ui, ntp) {
       timezone: ui.timezone,
       ntpIntervalMs: ntp.syncIntervalMs,
       globalToneDisabled: Boolean(ui.globalToneDisabled),
+      globalVisualBellEnabled: Boolean(ui.globalVisualBellEnabled),
+      visualBellConfig: ui.visualBellConfig,
     },
+  };
+}
+
+function normalizeVisualBellConfig(rawConfig = {}) {
+  const toSafeInt = (value, min, max, fallback) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return Math.min(max, Math.max(min, Math.round(parsed)));
+  };
+
+  return {
+    count: toSafeInt(rawConfig.count, 1, 12, 3),
+    lengthMs: toSafeInt(rawConfig.lengthMs, 10, 5000, 330),
+    pauseMs: toSafeInt(rawConfig.pauseMs, 0, 5000, 250),
   };
 }
 
@@ -183,6 +201,17 @@ async function init() {
         }
         persistState();
       },
+      setGlobalVisualBellEnabled: (enabled) => {
+        ui.globalVisualBellEnabled = Boolean(enabled);
+        if (!ui.globalVisualBellEnabled) {
+          ui.clearAllVisualBellSequences();
+        }
+        persistState();
+      },
+      setVisualBellConfig: (config) => {
+        ui.visualBellConfig = normalizeVisualBellConfig(config);
+        persistState();
+      },
       setNtpIntervalMinutes: (minutes) => {
         const safeMinutes = normalizeIntervalMinutes(minutes);
         ntp.setSyncIntervalMs(safeMinutes * 60 * 1000);
@@ -221,6 +250,18 @@ async function init() {
             audioController.stopAll();
           }
 
+          const globalVisualBellEnabled = Boolean(parsed.settings && parsed.settings.globalVisualBellEnabled);
+          ui.globalVisualBellEnabled = globalVisualBellEnabled;
+          const globalVisualBellEl = document.getElementById("global-visual-bell");
+          if (globalVisualBellEl) {
+            globalVisualBellEl.checked = globalVisualBellEnabled;
+          }
+          if (!globalVisualBellEnabled) {
+            ui.clearAllVisualBellSequences();
+          }
+
+          ui.visualBellConfig = normalizeVisualBellConfig(parsed.settings && parsed.settings.visualBellConfig);
+
           persistState();
           ui.showToast("JSON imported.");
         } catch (error) {
@@ -235,6 +276,8 @@ async function init() {
     timezone: String(savedSettings.timezone || "__local__"),
     ntpIntervalMinutes: Math.round(initialIntervalMs / 60000),
     globalToneDisabled: Boolean(savedSettings.globalToneDisabled),
+    globalVisualBellEnabled: Boolean(savedSettings.globalVisualBellEnabled),
+    visualBellConfig: normalizeVisualBellConfig(savedSettings.visualBellConfig),
     cookieStats: storageService.getCookieStorageStats(),
   });
 
@@ -246,6 +289,7 @@ async function init() {
     if (!ui.globalToneDisabled) {
       audioController.play(payload.timerConfig.sound).catch(() => undefined);
     }
+    ui.triggerVisualBell(payload.timerId);
     ui.showToast(`${payload.timerName} triggered (#${payload.triggerCount}).`);
   });
 
