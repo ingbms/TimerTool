@@ -179,6 +179,12 @@ body {
   gap: 0.85rem;
 }
 
+.global-toggle-separator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
 .global-tone-toggle {
   display: inline-flex;
   align-items: center;

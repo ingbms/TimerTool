@@ -1,5 +1,6 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_TIMERS = 4;
+const DEFAULT_MAX_TRIGGER_REPLAY = 1;
 
 function clampNumber(value, min, max, fallback) {
   const parsed = Number(value);
@@ -29,6 +30,14 @@ function setTimeOnDate(baseEpochMs, hhmm) {
 function formatNumberWithFallback(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeMaxTriggerReplay(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_MAX_TRIGGER_REPLAY;
+  }
+  return Math.max(1, Math.min(20, Math.round(parsed)));
 }
 
 function defaultSoundConfig() {
@@ -289,6 +298,13 @@ class Timer {
     this.reset();
   }
 
+  enterAutostartPending(nowMs) {
+    this.runtime.status = "pending";
+    this.runtime.autoPendingAtMs = nowMs;
+    this.runtime.nextTriggerMs = null;
+    this.runtime.endAtMs = null;
+  }
+
   computeSchedule(nowMs, { includeBaseTrigger = false } = {}) {
     const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart);
     const firstTriggerMs = includeBaseTrigger ? baseMs : baseMs + this.config.intervalMs;
@@ -326,7 +342,7 @@ class Timer {
       ? "unlimited"
       : Math.max(0, this.config.maxTriggers - this.runtime.triggerCount);
     
-    const autostartLabel = this.config.autostart ? " | Autost. ✓" : "";
+    const autostartLabel = this.config.autostart ? " | Autostart ✓" : "";
     
     if (this.runtime.status === "pending") {
       return `Pending autostart at ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}${autostartLabel}`;
@@ -368,7 +384,7 @@ class Timer {
     };
   }
 
-  tick(nowMs) {
+  tick(nowMs, { maxTriggerReplay = DEFAULT_MAX_TRIGGER_REPLAY } = {}) {
     const events = [];
     
     // Handle autostart pending state for schedule timers
@@ -384,20 +400,28 @@ class Timer {
         }
       }
       
-      // Initialize schedule times if not already set (first time entering pending)
-      if (this.runtime.status === "pending" && !Number.isFinite(this.runtime.nextTriggerMs)) {
-        const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
-        if (schedule) {
-          this.runtime.nextTriggerMs = schedule.nextTriggerMs;
-          this.runtime.endAtMs = schedule.endAtMs;
-        }
-      }
-      
       if (this.runtime.status === "pending") {
+        const isPendingLockedForCurrentWindow = this.runtime.autoPendingAtMs > 0
+          && this.runtime.autoPendingAtMs >= baseMs
+          && (!Number.isFinite(endMs) || this.runtime.autoPendingAtMs < endMs);
+        if (isPendingLockedForCurrentWindow) {
+          return { events, snapshot: this.snapshot(nowMs) };
+        }
+
+        // Initialize schedule times if not already set (first time entering pending)
+        if (!Number.isFinite(this.runtime.nextTriggerMs)) {
+          const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
+          if (schedule) {
+            this.runtime.nextTriggerMs = schedule.nextTriggerMs;
+            this.runtime.endAtMs = schedule.endAtMs;
+          }
+        }
+
         const activationMs = baseMs - this.config.offsetBeforeMs;
         // Transition to running once activation time is reached (base time minus offset)
         if (nowMs >= activationMs && (!Number.isFinite(endMs) || nowMs < endMs)) {
           this.runtime.status = "running";
+          this.runtime.autoPendingAtMs = 0;
         } else {
           // Stay pending, don't process triggers
           return { events, snapshot: this.snapshot(nowMs) };
@@ -405,8 +429,7 @@ class Timer {
       } else if (this.runtime.status === "running") {
         // Transition back to pending if we've reached the end time
         if (Number.isFinite(endMs) && nowMs >= endMs) {
-          this.runtime.status = "pending";
-          this.runtime.autoPendingAtMs = nowMs;
+          this.enterAutostartPending(nowMs);
           return { events, snapshot: this.snapshot(nowMs) };
         }
       }
@@ -428,38 +451,68 @@ class Timer {
       return { events, snapshot: this.snapshot(nowMs) };
     }
 
-    while (this.runtime.status === "running" && Number.isFinite(this.runtime.nextTriggerMs)) {
-      const effectiveTriggerMs = this.runtime.nextTriggerMs - this.config.offsetBeforeMs;
-      if (nowMs < effectiveTriggerMs) {
-        break;
-      }
-      if (!this.canTriggerAgain()) {
-        this.runtime.status = "completed";
-        this.runtime.completedAtMs = nowMs;
-        break;
-      }
-      this.runtime.triggerCount += 1;
-      events.push({ type: "trigger", timerId: this.id, triggerAtMs: nowMs });
+    if (this.runtime.status === "running" && Number.isFinite(this.runtime.nextTriggerMs)) {
+      const replayBudget = normalizeMaxTriggerReplay(maxTriggerReplay);
+      let replayed = 0;
 
-      if (!this.canTriggerAgain()) {
-        this.runtime.status = "completed";
-        this.runtime.completedAtMs = nowMs;
-        break;
-      }
+      while (this.runtime.status === "running" && Number.isFinite(this.runtime.nextTriggerMs)) {
+        const effectiveTriggerMs = this.runtime.nextTriggerMs - this.config.offsetBeforeMs;
+        if (nowMs < effectiveTriggerMs) {
+          break;
+        }
 
-      const nextTriggerMs = this.runtime.nextTriggerMs + this.config.intervalMs;
-      if (Number.isFinite(this.runtime.endAtMs) && nextTriggerMs - this.config.offsetBeforeMs > this.runtime.endAtMs) {
-        // For autostart timers, go back to pending instead of completed
-        if (this.config.autostart) {
-          this.runtime.status = "pending";
-          this.runtime.autoPendingAtMs = nowMs;
-        } else {
+        if (replayed >= replayBudget) {
+          // Skip remaining overdue intervals beyond replay budget and resync to the next future trigger.
+          const elapsedSinceCurrentEffectiveMs = Math.max(0, nowMs - effectiveTriggerMs);
+          const intervalsToAdvance = Math.floor(elapsedSinceCurrentEffectiveMs / this.config.intervalMs) + 1;
+          const fastForwardTriggerMs = this.runtime.nextTriggerMs + (intervalsToAdvance * this.config.intervalMs);
+
+          if (
+            Number.isFinite(this.runtime.endAtMs)
+            && fastForwardTriggerMs - this.config.offsetBeforeMs > this.runtime.endAtMs
+          ) {
+            if (this.config.autostart) {
+              this.enterAutostartPending(nowMs);
+            } else {
+              this.runtime.status = "completed";
+              this.runtime.completedAtMs = nowMs;
+            }
+          } else {
+            this.runtime.nextTriggerMs = fastForwardTriggerMs;
+          }
+          break;
+        }
+
+        if (!this.canTriggerAgain()) {
           this.runtime.status = "completed";
           this.runtime.completedAtMs = nowMs;
+          break;
         }
-        break;
+
+        this.runtime.triggerCount += 1;
+        events.push({ type: "trigger", timerId: this.id, triggerAtMs: nowMs });
+        replayed += 1;
+
+        if (!this.canTriggerAgain()) {
+          this.runtime.status = "completed";
+          this.runtime.completedAtMs = nowMs;
+          break;
+        }
+
+        const nextTriggerMs = this.runtime.nextTriggerMs + this.config.intervalMs;
+        if (Number.isFinite(this.runtime.endAtMs) && nextTriggerMs - this.config.offsetBeforeMs > this.runtime.endAtMs) {
+          // For autostart timers, go back to pending instead of completed.
+          if (this.config.autostart) {
+            this.enterAutostartPending(nowMs);
+          } else {
+            this.runtime.status = "completed";
+            this.runtime.completedAtMs = nowMs;
+          }
+          break;
+        }
+
+        this.runtime.nextTriggerMs = nextTriggerMs;
       }
-      this.runtime.nextTriggerMs = nextTriggerMs;
     }
 
     return { events, snapshot: this.snapshot(nowMs) };
@@ -467,8 +520,9 @@ class Timer {
 }
 
 class TimerManager {
-  constructor({ maxTimers = MAX_TIMERS } = {}) {
+  constructor({ maxTimers = MAX_TIMERS, maxTriggerReplay = DEFAULT_MAX_TRIGGER_REPLAY } = {}) {
     this.maxTimers = clampNumber(maxTimers, 1, MAX_TIMERS, MAX_TIMERS);
+    this.maxTriggerReplay = normalizeMaxTriggerReplay(maxTriggerReplay);
     this.defaultConfigs = Array.from({ length: this.maxTimers }, (_, index) => getDefaultPresetByIndex(index));
     this.timers = Array.from(
       { length: this.maxTimers },
@@ -589,10 +643,14 @@ class TimerManager {
     this.emit("all-status-changed", { action: "resetAllToDefaults" });
   }
 
+  setMaxTriggerReplay(value) {
+    this.maxTriggerReplay = normalizeMaxTriggerReplay(value);
+  }
+
   tick(nowMs) {
     const snapshots = [];
     for (const timer of this.timers) {
-      const result = timer.tick(nowMs);
+      const result = timer.tick(nowMs, { maxTriggerReplay: this.maxTriggerReplay });
       snapshots.push(result.snapshot);
       for (const event of result.events) {
         const payload = {

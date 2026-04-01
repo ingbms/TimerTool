@@ -1,6 +1,6 @@
 {
   "exportVersion": "1.0.0",
-  "exportDate": "2026-04-01T20:25:12.386Z",
+  "exportDate": "2026-04-01T21:38:24.263Z",
   "timers": [
     {
       "id": 0,
@@ -108,6 +108,7 @@
       "count": 3,
       "lengthMs": 330,
       "pauseMs": 250
-    }
+    },
+    "maxTriggerReplay": 1
   }
 }

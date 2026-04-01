@@ -102,6 +102,7 @@
   "settings": {
     "timezone": "__local__",
     "ntpIntervalMs": 1800000,
-    "globalToneDisabled": false
+    "globalToneDisabled": false,
+    "maxTriggerReplay": 1
   }
 }

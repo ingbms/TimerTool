@@ -7,6 +7,7 @@ function getPersistPayload(timerManager, ui, ntp) {
       globalToneDisabled: Boolean(ui.globalToneDisabled),
       globalVisualBellEnabled: Boolean(ui.globalVisualBellEnabled),
       visualBellConfig: ui.visualBellConfig,
+      maxTriggerReplay: timerManager.maxTriggerReplay,
     },
   };
 }
@@ -35,6 +36,14 @@ function normalizeIntervalMinutes(rawMinutes) {
   return Math.max(1, Math.min(240, Math.round(parsed)));
 }
 
+function normalizeMaxTriggerReplay(rawValue) {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return 1;
+  }
+  return Math.max(1, Math.min(20, Math.round(parsed)));
+}
+
 function ensureDependencies() {
   const required = [
     "TimerManager",
@@ -60,6 +69,10 @@ const SOURCE_FILES_FOR_TIMESTAMP = [
   "js/ntp.js",
   "js/audio.js",
   "js/storage.js",
+  "timertool-config-Minutes_European.json",
+  "timertool-config-Minutes_European-new.json",
+  "timertool-config-voices-german.json",
+  "timertool-config-voices-german-market-open-audio.json",
 ];
 
 function formatIsoLocalWithOffset(epochMs) {
@@ -79,16 +92,62 @@ function formatIsoLocalWithOffset(epochMs) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetSign}${offsetHours}:${offsetMinutes}`;
 }
 
+function normalizeSourcePath(rawPath) {
+  const cleaned = String(rawPath || "").trim();
+  if (!cleaned) {
+    return "";
+  }
+  const withoutHash = cleaned.split("#")[0];
+  const withoutQuery = withoutHash.split("?")[0];
+  return withoutQuery.replace(/^\.\//, "");
+}
+
+function collectTimestampSourcePaths() {
+  const paths = new Set(SOURCE_FILES_FOR_TIMESTAMP.map((path) => normalizeSourcePath(path)));
+
+  document.querySelectorAll('script[src], link[rel="stylesheet"][href]').forEach((element) => {
+    const rawValue = element.getAttribute("src") || element.getAttribute("href") || "";
+    const normalizedPath = normalizeSourcePath(rawValue);
+    if (normalizedPath) {
+      paths.add(normalizedPath);
+    }
+  });
+
+  return Array.from(paths).filter(Boolean);
+}
+
+function parseHttpDateHeaderMs(value) {
+  const epochMs = Date.parse(String(value || ""));
+  return Number.isFinite(epochMs) ? epochMs : null;
+}
+
 async function getSourceLastModifiedMs(path) {
-  const cacheBust = Date.now();
-  try {
-    const response = await fetch(`${path}?v=${cacheBust}`, { method: "HEAD", cache: "no-store" });
+  const cacheBust = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestUrl = `${path}?v=${cacheBust}`;
+
+  const attempt = async (method) => {
+    const response = await fetch(requestUrl, { method, cache: "no-store" });
     if (!response.ok) {
       return null;
     }
-    const lastModified = response.headers.get("last-modified");
-    const epochMs = Date.parse(String(lastModified || ""));
-    return Number.isFinite(epochMs) ? epochMs : null;
+    const lastModifiedMs = parseHttpDateHeaderMs(response.headers.get("last-modified"));
+    if (Number.isFinite(lastModifiedMs)) {
+      return lastModifiedMs;
+    }
+    return null;
+  };
+
+  try {
+    const headResult = await attempt("HEAD");
+    if (Number.isFinite(headResult)) {
+      return headResult;
+    }
+  } catch (_) {
+    // Continue with GET fallback below.
+  }
+
+  try {
+    return await attempt("GET");
   } catch (_) {
     return null;
   }
@@ -100,17 +159,20 @@ async function updateBuildTimestamp() {
     return;
   }
 
-  let bestEpochMs = Date.parse(String(document.lastModified || ""));
-  if (!Number.isFinite(bestEpochMs)) {
-    bestEpochMs = Date.now();
-  }
-
-  const sourceTimes = await Promise.all(SOURCE_FILES_FOR_TIMESTAMP.map((path) => getSourceLastModifiedMs(path)));
+  let bestEpochMs = 0;
+  const sourcePaths = collectTimestampSourcePaths();
+  const sourceTimes = await Promise.all(sourcePaths.map((path) => getSourceLastModifiedMs(path)));
   sourceTimes.forEach((epochMs) => {
     if (Number.isFinite(epochMs) && epochMs > bestEpochMs) {
       bestEpochMs = epochMs;
     }
   });
+  if (!Number.isFinite(bestEpochMs) || bestEpochMs <= 0) {
+    bestEpochMs = Date.parse(String(document.lastModified || ""));
+  }
+  if (!Number.isFinite(bestEpochMs) || bestEpochMs <= 0) {
+    bestEpochMs = Date.now();
+  }
 
   timestampEl.textContent = formatIsoLocalWithOffset(bestEpochMs);
   timestampEl.setAttribute("datetime", new Date(bestEpochMs).toISOString());
@@ -121,10 +183,13 @@ async function init() {
 
   const storageService = new window.StorageService();
   const audioController = new window.AudioController();
-  const timerManager = new window.TimerManager({ maxTimers: 4 });
 
   const savedState = storageService.loadState();
   const savedSettings = savedState && typeof savedState === "object" ? savedState.settings || {} : {};
+  const timerManager = new window.TimerManager({
+    maxTimers: 4,
+    maxTriggerReplay: normalizeMaxTriggerReplay(savedSettings.maxTriggerReplay),
+  });
   if (Array.isArray(savedState && savedState.timers) && savedState.timers.length > 0) {
     timerManager.importConfigs(savedState.timers);
   } else {
@@ -239,6 +304,9 @@ async function init() {
           const intervalMs = Number(parsed.settings && parsed.settings.ntpIntervalMs) || ntp.syncIntervalMs;
           ntp.setSyncIntervalMs(intervalMs);
           document.getElementById("ntp-interval-minutes").value = String(Math.round(intervalMs / 60000));
+
+          const maxTriggerReplay = normalizeMaxTriggerReplay(parsed.settings && parsed.settings.maxTriggerReplay);
+          timerManager.setMaxTriggerReplay(maxTriggerReplay);
 
           const globalToneDisabled = Boolean(parsed.settings && parsed.settings.globalToneDisabled);
           ui.globalToneDisabled = globalToneDisabled;

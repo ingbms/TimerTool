@@ -30,8 +30,9 @@
       <div class="global-toggles">
         <label class="global-tone-toggle" for="global-tone-disable">
           <input id="global-tone-disable" type="checkbox">
-          <span>Global tone disable</span>
+          <span>Global audio mute</span>
         </label>
+        <span class="global-toggle-separator" aria-hidden="true">|</span>
         <div class="global-tone-toggle global-tone-toggle-configurable">
           <input id="global-visual-bell" type="checkbox">
           <button id="visual-bell-config-btn" class="toggle-text-button" type="button">Visual bell</button>
@@ -61,10 +62,6 @@
           <span>Timezone</span>
           <select id="timezone-select" aria-label="Choose timezone">
             <option value="__local__">Local (System)</option>
-            <option value="Europe/Berlin">Europe/Berlin</option>
-            <option value="UTC">UTC</option>
-            <option value="America/New_York">America/New_York</option>
-            <option value="Asia/Tokyo">Asia/Tokyo</option>
           </select>
         </label>
       </div>
@@ -263,6 +260,7 @@
   <script src="js/ntp.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/timezones-fallback.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/main.js"></script>
 </body>

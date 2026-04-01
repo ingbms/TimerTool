@@ -33,9 +33,9 @@ Browser-only timer management tool with up to 4 configurable timers.
 
 ## Documentation
 
-- Overview: [documantation/README.md](documantation/README.md)
-- Config reference: [documantation/KONFIGURATION.md](documantation/KONFIGURATION.md)
-- Use cases and config examples: [documantation/ANWENDUNGSSZENARIEN.md](documantation/ANWENDUNGSSZENARIEN.md)
+- Overview: [documantation/README.md](documentation/README.md)
+- Config reference: [documantation/KONFIGURATION.md](documentation/KONFIGURATION.md)
+- Use cases and config examples: [documantation/ANWENDUNGSSZENARIEN.md](documentation/ANWENDUNGSSZENARIEN.md)
 
 ## Structure
 

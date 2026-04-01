@@ -61,6 +61,44 @@ function formatClockForTimezone(epochMs, timezone) {
   }
 }
 
+function normalizeTimezoneList(rawValues) {
+  const values = Array.isArray(rawValues) ? rawValues : [];
+  const unique = new Set();
+  const result = [];
+  values.forEach((value) => {
+    if (typeof value !== "string") {
+      return;
+    }
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "__local__" || unique.has(trimmed)) {
+      return;
+    }
+    unique.add(trimmed);
+    result.push(trimmed);
+  });
+  return result.sort((left, right) => left.localeCompare(right, "en"));
+}
+
+function getAllTimezones() {
+  if (typeof Intl !== "undefined" && typeof Intl.supportedValuesOf === "function") {
+    try {
+      const supported = Intl.supportedValuesOf("timeZone");
+      const normalized = normalizeTimezoneList(supported);
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    } catch (_) {
+      // Fall through to static fallback list.
+    }
+  }
+
+  if (Array.isArray(window.FALLBACK_TIMEZONES) && window.FALLBACK_TIMEZONES.length > 0) {
+    return normalizeTimezoneList(window.FALLBACK_TIMEZONES);
+  }
+
+  return ["UTC"];
+}
+
 const DEFAULT_VISUAL_BELL_CONFIG = Object.freeze({
   count: 3,
   lengthMs: 330,
@@ -113,6 +151,7 @@ class UIController {
     this.modalEl = document.getElementById("timer-config-modal");
     this.formEl = document.getElementById("timer-config-form");
     this.fileInputEl = document.getElementById("json-file-input");
+    this.timezoneSelectEl = document.getElementById("timezone-select");
     this.globalToneDisableEl = document.getElementById("global-tone-disable");
     this.globalVisualBellEl = document.getElementById("global-visual-bell");
     this.visualBellConfigBtnEl = document.getElementById("visual-bell-config-btn");
@@ -132,6 +171,7 @@ class UIController {
     this.cookiePolicyModalEl = document.getElementById("cookie-policy-modal");
     this.cookiePolicyCloseBtnEl = document.getElementById("cookie-policy-close-btn");
 
+    this.populateTimezoneOptions();
     this.wireGlobalControls();
     this.wireVisualBellConfigControls();
     this.wirePolicyControls();
@@ -146,8 +186,7 @@ class UIController {
     document.getElementById("save-json-btn")?.addEventListener("click", () => this.handlers.saveJson());
     document.getElementById("load-json-btn")?.addEventListener("click", () => this.fileInputEl.click());
 
-    const timezoneSelect = document.getElementById("timezone-select");
-    timezoneSelect.addEventListener("change", (event) => {
+    this.timezoneSelectEl?.addEventListener("change", (event) => {
       this.timezone = String(event.target.value || "__local__");
       this.handlers.setTimezone(this.timezone);
     });
@@ -285,11 +324,15 @@ class UIController {
     this.globalToneDisabled = Boolean(settings.globalToneDisabled);
     this.globalVisualBellEnabled = Boolean(settings.globalVisualBellEnabled);
     this.visualBellConfig = normalizeVisualBellConfig(settings.visualBellConfig);
-    const timezoneSelect = document.getElementById("timezone-select");
-    timezoneSelect.value = this.timezone;
-    if (timezoneSelect.value !== this.timezone) {
+    this.populateTimezoneOptions();
+    if (this.timezoneSelectEl) {
+      this.timezoneSelectEl.value = this.timezone;
+    }
+    if (!this.timezoneSelectEl || this.timezoneSelectEl.value !== this.timezone) {
       this.timezone = "__local__";
-      timezoneSelect.value = "__local__";
+      if (this.timezoneSelectEl) {
+        this.timezoneSelectEl.value = "__local__";
+      }
     }
     if (settings.ntpIntervalMinutes) {
       document.getElementById("ntp-interval-minutes").value = String(settings.ntpIntervalMinutes);
@@ -429,6 +472,35 @@ class UIController {
 
   closeVisualBellConfigModal() {
     this.visualBellConfigModalEl?.close();
+  }
+
+  populateTimezoneOptions() {
+    if (!this.timezoneSelectEl) {
+      return;
+    }
+
+    const previousSelection = this.timezoneSelectEl.value || this.timezone || "__local__";
+    const timezoneOptions = getAllTimezones();
+    this.timezoneSelectEl.innerHTML = "";
+
+    const localOption = document.createElement("option");
+    localOption.value = "__local__";
+    localOption.textContent = "Local (System)";
+    this.timezoneSelectEl.append(localOption);
+
+    const fragment = document.createDocumentFragment();
+    timezoneOptions.forEach((timezone) => {
+      const option = document.createElement("option");
+      option.value = timezone;
+      option.textContent = timezone;
+      fragment.append(option);
+    });
+    this.timezoneSelectEl.append(fragment);
+
+    this.timezoneSelectEl.value = previousSelection;
+    if (this.timezoneSelectEl.value !== previousSelection) {
+      this.timezoneSelectEl.value = "__local__";
+    }
   }
 
   updateModeVisibility() {
