@@ -3,3 +3,6 @@ tools/
 *.log
 Thumbs.db
 publish-worktree/
+node_modules/
+test-results/
+playwright-report/

@@ -1,5 +1,13 @@
 const DEFAULT_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 4500;
+const DEFAULT_MAX_TRUSTED_OFFSET_MS = 5 * 60 * 1000;
+const DEFAULT_MAX_SLEW_RATE_MS_PER_SECOND = 100;
+
+function getMonotonicMs() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
 
 function withTimeout(promise, timeoutMs) {
   const controller = new AbortController();
@@ -33,22 +41,64 @@ async function fetchTimeApiIo(signal) {
   return epoch;
 }
 
+async function fetchGetTimeApiDev(signal) {
+  const response = await fetch("https://gettimeapi.dev/v1/time?timezone=UTC", { signal, cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`gettimeapi.dev status ${response.status}`);
+  }
+  const payload = await response.json();
+  const epoch = typeof payload.timestamp === "number"
+    ? payload.timestamp * 1000
+    : Date.parse(String(payload.iso8601 || ""));
+  if (!Number.isFinite(epoch)) {
+    throw new Error("gettimeapi.dev invalid timestamp");
+  }
+  return epoch;
+}
+
+async function fetchSameOriginHttpDate(signal) {
+  const requestUrl = `./index.html?time-sync=${Date.now()}`;
+  let lastError = "";
+  for (const method of ["HEAD", "GET"]) {
+    try {
+      const response = await fetch(requestUrl, { method, cache: "no-store", signal });
+      if (!response.ok) {
+        throw new Error(`same-origin time status ${response.status}`);
+      }
+      const epoch = Date.parse(response.headers.get("date") || "");
+      if (Number.isFinite(epoch)) {
+        return epoch;
+      }
+      throw new Error("same-origin time missing Date header");
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  throw new Error(lastError || "same-origin time unavailable");
+}
+
 class NtpSynchronizer {
   constructor({
     enabled = true,
     syncIntervalMs = DEFAULT_SYNC_INTERVAL_MS,
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    maxTrustedOffsetMs = DEFAULT_MAX_TRUSTED_OFFSET_MS,
+    maxSlewRateMsPerSecond = DEFAULT_MAX_SLEW_RATE_MS_PER_SECOND,
   } = {}) {
     this.enabled = Boolean(enabled);
     this.syncIntervalMs = Number(syncIntervalMs) || DEFAULT_SYNC_INTERVAL_MS;
     this.timeoutMs = Number(timeoutMs) || DEFAULT_TIMEOUT_MS;
+    this.maxTrustedOffsetMs = Number(maxTrustedOffsetMs) || DEFAULT_MAX_TRUSTED_OFFSET_MS;
+    this.maxSlewRateMsPerSecond = Math.max(1, Number(maxSlewRateMsPerSecond) || DEFAULT_MAX_SLEW_RATE_MS_PER_SECOND);
     this.offsetMs = 0;
+    this.targetOffsetMs = 0;
+    this.lastOffsetUpdateMonoMs = getMonotonicMs();
     this.lastSyncMs = 0;
     this.lastStatus = "system";
     this.lastError = "";
     this.syncTimerId = null;
     this.listeners = new Set();
-    this.sources = [fetchWorldTimeApi, fetchTimeApiIo];
+    this.sources = [fetchSameOriginHttpDate, fetchGetTimeApiDev, fetchWorldTimeApi, fetchTimeApiIo];
   }
 
   onStatusChange(listener) {
@@ -64,7 +114,8 @@ class NtpSynchronizer {
   getStatusSnapshot() {
     return {
       enabled: this.enabled,
-      offsetMs: this.offsetMs,
+      offsetMs: this.getCurrentOffsetMs(),
+      targetOffsetMs: this.targetOffsetMs,
       lastSyncMs: this.lastSyncMs,
       lastStatus: this.lastStatus,
       lastError: this.lastError,
@@ -72,8 +123,32 @@ class NtpSynchronizer {
     };
   }
 
+  getCurrentOffsetMs() {
+    const nowMonoMs = getMonotonicMs();
+    const elapsedMs = Math.max(0, nowMonoMs - this.lastOffsetUpdateMonoMs);
+    this.lastOffsetUpdateMonoMs = nowMonoMs;
+
+    const remainingCorrectionMs = this.targetOffsetMs - this.offsetMs;
+    if (remainingCorrectionMs === 0) {
+      return this.offsetMs;
+    }
+
+    const maxAdjustmentMs = (elapsedMs / 1000) * this.maxSlewRateMsPerSecond;
+    if (Math.abs(remainingCorrectionMs) <= maxAdjustmentMs) {
+      this.offsetMs = this.targetOffsetMs;
+    } else {
+      this.offsetMs += Math.sign(remainingCorrectionMs) * maxAdjustmentMs;
+    }
+    return this.offsetMs;
+  }
+
+  setTargetOffsetMs(targetOffsetMs) {
+    this.getCurrentOffsetMs();
+    this.targetOffsetMs = targetOffsetMs;
+  }
+
   now() {
-    return Date.now() + this.offsetMs;
+    return Date.now() + this.getCurrentOffsetMs();
   }
 
   setSyncIntervalMs(syncIntervalMs) {
@@ -112,6 +187,16 @@ class NtpSynchronizer {
     this.emitStatus();
   }
 
+  async measureOffset(source) {
+    const requestLocalMs = Date.now();
+    const requestMonoMs = getMonotonicMs();
+    const serverEpochMs = await withTimeout((signal) => source(signal), this.timeoutMs);
+    const responseMonoMs = getMonotonicMs();
+    const roundTripMs = Math.max(0, responseMonoMs - requestMonoMs);
+    const estimatedLocalAtServerMs = requestLocalMs + (roundTripMs / 2);
+    return serverEpochMs - estimatedLocalAtServerMs;
+  }
+
   async syncNow() {
     if (!this.enabled) {
       this.lastStatus = "disabled";
@@ -128,10 +213,12 @@ class NtpSynchronizer {
 
     for (const source of this.sources) {
       try {
-        const serverEpochMs = await withTimeout((signal) => source(signal), this.timeoutMs);
-        const localEpochMs = Date.now();
-        this.offsetMs = serverEpochMs - localEpochMs;
-        this.lastSyncMs = localEpochMs;
+        const nextOffsetMs = await this.measureOffset(source);
+        if (Math.abs(nextOffsetMs) > this.maxTrustedOffsetMs) {
+          throw new Error(`time source offset ${Math.round(nextOffsetMs / 1000)}s exceeds trusted limit`);
+        }
+        this.setTargetOffsetMs(nextOffsetMs);
+        this.lastSyncMs = Date.now();
         this.lastStatus = "synced";
         this.lastError = "";
         this.emitStatus();

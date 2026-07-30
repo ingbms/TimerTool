@@ -8,7 +8,7 @@ function clampNumber(value, min, max, fallback) {
 
 function formatDuration(ms) {
   const safeMs = Math.max(0, Number(ms) || 0);
-  const totalSeconds = Math.floor(safeMs / 1000);
+  const totalSeconds = safeMs > 0 ? Math.ceil(safeMs / 1000) : 0;
   const seconds = totalSeconds % 60;
   const totalMinutes = Math.floor(totalSeconds / 60);
   const minutes = totalMinutes % 60;

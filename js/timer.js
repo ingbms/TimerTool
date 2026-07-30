@@ -17,16 +17,181 @@ function isValidHHMM(value) {
   return /^([01]\d|2[0-3]):([0-5]\d)$/.test(value.trim());
 }
 
-function setTimeOnDate(baseEpochMs, hhmm) {
-  const match = /^(\d{2}):(\d{2})$/.exec(hhmm);
+function parseHHMM(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(value || ""));
   if (!match) {
-    return baseEpochMs;
+    return null;
   }
-  const result = new Date(baseEpochMs);
-  result.setHours(Number(match[1]), Number(match[2]), 0, 0);
-  return result.getTime();
+  return { hour: Number(match[1]), minute: Number(match[2]) };
 }
 
+function normalizeTimerTimezone(timezone) {
+  const value = String(timezone || "__local__").trim();
+  return value || "__local__";
+}
+
+const timezonePartFormatterCache = new Map();
+
+function getTimezonePartFormatter(timezone) {
+  const normalized = normalizeTimerTimezone(timezone);
+  const cacheKey = normalized;
+  if (timezonePartFormatterCache.has(cacheKey)) {
+    return timezonePartFormatterCache.get(cacheKey);
+  }
+  const options = {
+    ...(normalized === "__local__" ? {} : { timeZone: normalized }),
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  };
+  const formatter = new Intl.DateTimeFormat("en-GB", options);
+  timezonePartFormatterCache.set(cacheKey, formatter);
+  return formatter;
+}
+
+function getWallClockParts(epochMs, timezone = "__local__") {
+  const normalized = normalizeTimerTimezone(timezone);
+  if (normalized === "__local__") {
+    const date = new Date(epochMs);
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+      second: date.getSeconds(),
+    };
+  }
+
+  const values = {};
+  getTimezonePartFormatter(normalized).formatToParts(new Date(epochMs)).forEach((part) => {
+    if (part.type !== "literal") {
+      values[part.type] = Number(part.value);
+    }
+  });
+
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+    hour: values.hour === 24 ? 0 : values.hour,
+    minute: values.minute,
+    second: values.second,
+  };
+}
+
+function addWallDays(dateParts, days) {
+  const date = new Date(Date.UTC(dateParts.year, dateParts.month - 1, dateParts.day + days, 12, 0, 0, 0));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function wallPartsMatch(parts, expected) {
+  return parts.year === expected.year
+    && parts.month === expected.month
+    && parts.day === expected.day
+    && parts.hour === expected.hour
+    && parts.minute === expected.minute;
+}
+
+function wallTimeToEpochMs(wallTime, timezone = "__local__") {
+  const normalized = normalizeTimerTimezone(timezone);
+  if (normalized === "__local__") {
+    return new Date(wallTime.year, wallTime.month - 1, wallTime.day, wallTime.hour, wallTime.minute, 0, 0).getTime();
+  }
+
+  const targetWallUtcMs = Date.UTC(wallTime.year, wallTime.month - 1, wallTime.day, wallTime.hour, wallTime.minute, 0, 0);
+  let epochMs = targetWallUtcMs;
+  for (let i = 0; i < 5; i += 1) {
+    const parts = getWallClockParts(epochMs, normalized);
+    const representedWallUtcMs = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0, 0);
+    const timezoneOffsetMs = representedWallUtcMs - epochMs;
+    const nextEpochMs = targetWallUtcMs - timezoneOffsetMs;
+    if (Math.abs(nextEpochMs - epochMs) < 1) {
+      epochMs = nextEpochMs;
+      break;
+    }
+    epochMs = nextEpochMs;
+  }
+
+  if (wallPartsMatch(getWallClockParts(epochMs, normalized), wallTime)) {
+    return epochMs;
+  }
+
+  for (let minuteOffset = 1; minuteOffset <= 180; minuteOffset += 1) {
+    const candidateMs = epochMs + minuteOffset * 60 * 1000;
+    const parts = getWallClockParts(candidateMs, normalized);
+    if (
+      parts.year === wallTime.year
+      && parts.month === wallTime.month
+      && parts.day === wallTime.day
+      && (parts.hour > wallTime.hour || (parts.hour === wallTime.hour && parts.minute >= wallTime.minute))
+    ) {
+      return candidateMs;
+    }
+  }
+
+  return epochMs;
+}
+
+function setTimeOnDate(baseEpochMs, hhmm, timezone = "__local__") {
+  const time = parseHHMM(hhmm);
+  if (!time) {
+    return baseEpochMs;
+  }
+  const dateParts = getWallClockParts(baseEpochMs, timezone);
+  return wallTimeToEpochMs({
+    year: dateParts.year,
+    month: dateParts.month,
+    day: dateParts.day,
+    hour: time.hour,
+    minute: time.minute,
+  }, timezone);
+}
+
+function setTimeOnNextWallDate(baseEpochMs, hhmm, timezone = "__local__") {
+  const time = parseHHMM(hhmm);
+  if (!time) {
+    return baseEpochMs;
+  }
+  const nextDateParts = addWallDays(getWallClockParts(baseEpochMs, timezone), 1);
+  return wallTimeToEpochMs({
+    year: nextDateParts.year,
+    month: nextDateParts.month,
+    day: nextDateParts.day,
+    hour: time.hour,
+    minute: time.minute,
+  }, timezone);
+}
+
+function formatTimeForTimezone(epochMs, timezone = "__local__") {
+  const normalized = normalizeTimerTimezone(timezone);
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      ...(normalized === "__local__" ? {} : { timeZone: normalized }),
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    }).format(new Date(epochMs));
+  } catch (_) {
+    return new Date(epochMs).toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+  }
+}
 function formatNumberWithFallback(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -222,7 +387,7 @@ class Timer {
     return this.config.maxTriggers === 0 || this.runtime.triggerCount < this.config.maxTriggers;
   }
 
-  start(nowMs) {
+  start(nowMs, { timezone = "__local__" } = {}) {
     if (this.runtime.status === "running") {
       return;
     }
@@ -237,7 +402,7 @@ class Timer {
     if (this.config.mode === "schedule" && this.config.autostart) {
       this.runtime.status = "pending";
       this.runtime.startedAtMs = nowMs;
-      const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
+      const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true, timezone });
       if (schedule) {
         this.runtime.nextTriggerMs = schedule.nextTriggerMs;
         this.runtime.endAtMs = schedule.endAtMs;
@@ -254,7 +419,7 @@ class Timer {
       return;
     }
 
-    const schedule = this.computeSchedule(nowMs);
+    const schedule = this.computeSchedule(nowMs, { timezone });
     if (!schedule) {
       this.runtime.status = "completed";
       this.runtime.completedAtMs = nowMs;
@@ -305,8 +470,8 @@ class Timer {
     this.runtime.endAtMs = null;
   }
 
-  computeSchedule(nowMs, { includeBaseTrigger = false } = {}) {
-    const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart);
+  computeSchedule(nowMs, { includeBaseTrigger = false, timezone = "__local__" } = {}) {
+    const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart, timezone);
     const firstTriggerMs = includeBaseTrigger ? baseMs : baseMs + this.config.intervalMs;
 
     let nextTriggerMs = firstTriggerMs;
@@ -318,9 +483,9 @@ class Timer {
 
     let endAtMs = null;
     if (this.config.endTime) {
-      endAtMs = setTimeOnDate(baseMs, this.config.endTime);
+      endAtMs = setTimeOnDate(baseMs, this.config.endTime, timezone);
       if (endAtMs <= baseMs) {
-        endAtMs += DAY_MS;
+        endAtMs = setTimeOnNextWallDate(baseMs, this.config.endTime, timezone);
       }
     }
 
@@ -330,7 +495,31 @@ class Timer {
     return { nextTriggerMs, endAtMs };
   }
 
-  formatMeta(nowMs) {
+
+  reschedule(nowMs, { timezone = "__local__" } = {}) {
+    if (this.config.mode !== "schedule") {
+      return;
+    }
+    if (this.runtime.status !== "running" && this.runtime.status !== "pending") {
+      return;
+    }
+    const schedule = this.computeSchedule(nowMs, {
+      includeBaseTrigger: this.runtime.status === "pending",
+      timezone,
+    });
+    if (!schedule) {
+      this.runtime.nextTriggerMs = null;
+      this.runtime.endAtMs = null;
+      if (this.runtime.status === "running") {
+        this.runtime.status = this.config.autostart ? "pending" : "completed";
+        this.runtime.completedAtMs = nowMs;
+      }
+      return;
+    }
+    this.runtime.nextTriggerMs = schedule.nextTriggerMs;
+    this.runtime.endAtMs = schedule.endAtMs;
+  }
+  formatMeta(nowMs, { timezone = "__local__" } = {}) {
     if (this.config.mode === "countdown") {
       if (this.runtime.status === "completed") {
         return `Triggers: ${this.runtime.triggerCount}`;
@@ -349,15 +538,21 @@ class Timer {
     }
     
     if (this.runtime.status === "running") {
-      const next = this.runtime.nextTriggerMs
-        ? new Date(this.runtime.nextTriggerMs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+      const effectiveTriggerMs = Number.isFinite(this.runtime.nextTriggerMs)
+        ? this.runtime.nextTriggerMs - this.config.offsetBeforeMs
+        : null;
+      const next = Number.isFinite(effectiveTriggerMs)
+        ? formatTimeForTimezone(effectiveTriggerMs, timezone)
         : "--:--:--";
-      return `Next: ${next} | End: ${endLabel} | Remaining: ${remainingTriggers}${autostartLabel}`;
+      const slotLabel = this.config.offsetBeforeMs > 0 && Number.isFinite(this.runtime.nextTriggerMs)
+        ? ` | Slot: ${formatTimeForTimezone(this.runtime.nextTriggerMs, timezone)}`
+        : "";
+      return `Next alarm: ${next}${slotLabel} | End: ${endLabel} | Remaining: ${remainingTriggers}${autostartLabel}`;
     }
     return `Start: ${this.config.scheduleStart} | Interval: ${Math.round(this.config.intervalMs / 1000)}s | End: ${endLabel}${autostartLabel}`;
   }
 
-  snapshot(nowMs) {
+  snapshot(nowMs, { timezone = "__local__" } = {}) {
     let remainingMs = 0;
     let progressPercent = 0;
     let progressBaseMs = this.config.durationMs;
@@ -379,24 +574,27 @@ class Timer {
       remainingMs,
       progressPercent,
       nextTriggerMs: this.runtime.nextTriggerMs,
+      effectiveTriggerMs: Number.isFinite(this.runtime.nextTriggerMs)
+        ? this.runtime.nextTriggerMs - this.config.offsetBeforeMs
+        : null,
       endAtMs: this.runtime.endAtMs,
-      metaText: this.formatMeta(nowMs),
+      metaText: this.formatMeta(nowMs, { timezone }),
     };
   }
 
-  tick(nowMs, { maxTriggerReplay = DEFAULT_MAX_TRIGGER_REPLAY } = {}) {
+  tick(nowMs, { maxTriggerReplay = DEFAULT_MAX_TRIGGER_REPLAY, timezone = "__local__" } = {}) {
     const events = [];
     
     // Handle autostart pending state for schedule timers
     if (this.config.mode === "schedule" && this.config.autostart) {
       // Compute the base time and end time for today
-      const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart);
+      const baseMs = setTimeOnDate(nowMs, this.config.scheduleStart, timezone);
       let endMs = null;
       if (this.config.endTime) {
-        endMs = setTimeOnDate(baseMs, this.config.endTime);
+        endMs = setTimeOnDate(baseMs, this.config.endTime, timezone);
         if (endMs <= baseMs) {
           // End time is tomorrow
-          endMs += DAY_MS;
+          endMs = setTimeOnNextWallDate(baseMs, this.config.endTime, timezone);
         }
       }
       
@@ -405,12 +603,12 @@ class Timer {
           && this.runtime.autoPendingAtMs >= baseMs
           && (!Number.isFinite(endMs) || this.runtime.autoPendingAtMs < endMs);
         if (isPendingLockedForCurrentWindow) {
-          return { events, snapshot: this.snapshot(nowMs) };
+          return { events, snapshot: this.snapshot(nowMs, { timezone }) };
         }
 
         // Initialize schedule times if not already set (first time entering pending)
         if (!Number.isFinite(this.runtime.nextTriggerMs)) {
-          const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true });
+          const schedule = this.computeSchedule(nowMs, { includeBaseTrigger: true, timezone });
           if (schedule) {
             this.runtime.nextTriggerMs = schedule.nextTriggerMs;
             this.runtime.endAtMs = schedule.endAtMs;
@@ -424,19 +622,19 @@ class Timer {
           this.runtime.autoPendingAtMs = 0;
         } else {
           // Stay pending, don't process triggers
-          return { events, snapshot: this.snapshot(nowMs) };
+          return { events, snapshot: this.snapshot(nowMs, { timezone }) };
         }
       } else if (this.runtime.status === "running") {
         // Transition back to pending if we've reached the end time
         if (Number.isFinite(endMs) && nowMs >= endMs) {
           this.enterAutostartPending(nowMs);
-          return { events, snapshot: this.snapshot(nowMs) };
+          return { events, snapshot: this.snapshot(nowMs, { timezone }) };
         }
       }
     }
     
     if (this.runtime.status !== "running") {
-      return { events, snapshot: this.snapshot(nowMs) };
+      return { events, snapshot: this.snapshot(nowMs, { timezone }) };
     }
 
     if (this.config.mode === "countdown") {
@@ -448,7 +646,7 @@ class Timer {
         this.runtime.status = "completed";
         this.runtime.completedAtMs = nowMs;
       }
-      return { events, snapshot: this.snapshot(nowMs) };
+      return { events, snapshot: this.snapshot(nowMs, { timezone }) };
     }
 
     if (this.runtime.status === "running" && Number.isFinite(this.runtime.nextTriggerMs)) {
@@ -515,7 +713,7 @@ class Timer {
       }
     }
 
-    return { events, snapshot: this.snapshot(nowMs) };
+    return { events, snapshot: this.snapshot(nowMs, { timezone }) };
   }
 }
 
@@ -558,8 +756,8 @@ class TimerManager {
     return deepClone(this.defaultConfigs[timerId] || {});
   }
 
-  getAllSnapshots(nowMs = Date.now()) {
-    return this.timers.map((timer) => timer.snapshot(nowMs));
+  getAllSnapshots(nowMs = Date.now(), { timezone = "__local__" } = {}) {
+    return this.timers.map((timer) => timer.snapshot(nowMs, { timezone }));
   }
 
   updateTimerConfig(timerId, configPatch) {
@@ -571,12 +769,12 @@ class TimerManager {
     this.emit("timer-config-updated", { timerId, config: timer.config });
   }
 
-  startTimer(timerId, nowMs) {
+  startTimer(timerId, nowMs, { timezone = "__local__" } = {}) {
     const timer = this.getTimer(timerId);
     if (!timer) {
       return;
     }
-    timer.start(nowMs);
+    timer.start(nowMs, { timezone });
     this.emit("timer-status-changed", { timerId, status: timer.runtime.status });
   }
 
@@ -616,8 +814,8 @@ class TimerManager {
     this.emit("timer-status-changed", { timerId, status: timer.runtime.status });
   }
 
-  startAll(nowMs) {
-    this.timers.forEach((timer) => timer.start(nowMs));
+  startAll(nowMs, { timezone = "__local__" } = {}) {
+    this.timers.forEach((timer) => timer.start(nowMs, { timezone }));
     this.emit("all-status-changed", { action: "startAll" });
   }
 
@@ -646,11 +844,14 @@ class TimerManager {
   setMaxTriggerReplay(value) {
     this.maxTriggerReplay = normalizeMaxTriggerReplay(value);
   }
-
-  tick(nowMs) {
+  recalculateSchedules(nowMs, { timezone = "__local__" } = {}) {
+    this.timers.forEach((timer) => timer.reschedule(nowMs, { timezone }));
+    this.emit("all-status-changed", { action: "recalculateSchedules" });
+  }
+  tick(nowMs, { timezone = "__local__" } = {}) {
     const snapshots = [];
     for (const timer of this.timers) {
-      const result = timer.tick(nowMs, { maxTriggerReplay: this.maxTriggerReplay });
+      const result = timer.tick(nowMs, { maxTriggerReplay: this.maxTriggerReplay, timezone });
       snapshots.push(result.snapshot);
       for (const event of result.events) {
         const payload = {

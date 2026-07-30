@@ -212,7 +212,7 @@ async function init() {
     timerManager,
     handlers: {
       startTimer: (timerId) => {
-        timerManager.startTimer(timerId, ntp.now());
+        timerManager.startTimer(timerId, ntp.now(), { timezone: ui.timezone });
         persistState();
       },
       toggleStartStop: (timerId) => {
@@ -224,7 +224,7 @@ async function init() {
         if (isActive) {
           timerManager.stopTimer(timerId);
         } else {
-          timerManager.startTimer(timerId, ntp.now());
+          timerManager.startTimer(timerId, ntp.now(), { timezone: ui.timezone });
         }
         persistState();
       },
@@ -239,7 +239,7 @@ async function init() {
         ui.showToast(`Timer ${timerId + 1} saved.`);
       },
       startAll: () => {
-        timerManager.startAll(ntp.now());
+        timerManager.startAll(ntp.now(), { timezone: ui.timezone });
         persistState();
       },
       resetAll: () => {
@@ -257,6 +257,7 @@ async function init() {
       },
       setTimezone: (timezone) => {
         ui.timezone = timezone || "__local__";
+        timerManager.recalculateSchedules(ntp.now(), { timezone: ui.timezone });
         persistState();
       },
       setGlobalToneDisabled: (disabled) => {
@@ -307,6 +308,7 @@ async function init() {
 
           const maxTriggerReplay = normalizeMaxTriggerReplay(parsed.settings && parsed.settings.maxTriggerReplay);
           timerManager.setMaxTriggerReplay(maxTriggerReplay);
+          timerManager.recalculateSchedules(ntp.now(), { timezone: ui.timezone });
 
           const globalToneDisabled = Boolean(parsed.settings && parsed.settings.globalToneDisabled);
           ui.globalToneDisabled = globalToneDisabled;
@@ -340,8 +342,9 @@ async function init() {
     },
   });
 
-  ui.initialize(timerManager.getAllSnapshots(ntp.now()), {
-    timezone: String(savedSettings.timezone || "__local__"),
+  const initialTimezone = String(savedSettings.timezone || "__local__");
+  ui.initialize(timerManager.getAllSnapshots(ntp.now(), { timezone: initialTimezone }), {
+    timezone: initialTimezone,
     ntpIntervalMinutes: Math.round(initialIntervalMs / 60000),
     globalToneDisabled: Boolean(savedSettings.globalToneDisabled),
     globalVisualBellEnabled: Boolean(savedSettings.globalVisualBellEnabled),
@@ -361,15 +364,16 @@ async function init() {
     ui.showToast(`${payload.timerName} triggered (#${payload.triggerCount}).`);
   });
 
-  let lastUiPaintMs = 0;
-  function mainLoop() {
+  let lastUiPaintFrameMs = 0;
+  function mainLoop(frameMs) {
+    const paintFrameMs = Number.isFinite(frameMs) ? frameMs : performance.now();
     const nowMs = ntp.now();
-    const snapshots = timerManager.tick(nowMs);
+    const snapshots = timerManager.tick(nowMs, { timezone: ui.timezone });
 
-    if (!lastUiPaintMs || nowMs - lastUiPaintMs >= 80) {
+    if (!lastUiPaintFrameMs || paintFrameMs - lastUiPaintFrameMs >= 80) {
       ui.renderSnapshots(snapshots);
       ui.updateClock(nowMs);
-      lastUiPaintMs = nowMs;
+      lastUiPaintFrameMs = paintFrameMs;
     }
     requestAnimationFrame(mainLoop);
   }

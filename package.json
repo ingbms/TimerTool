@@ -1,0 +1,23 @@
+{
+  "name": "timertool",
+  "version": "1.0.0",
+  "description": "Browser-only timer management tool with up to 4 configurable timers.",
+  "private": true,
+  "license": "CC-BY-NC-SA-4.0",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --check js/main.js && node --check js/ntp.js && node --check js/ui.js && node --check js/timer.js && node --check js/audio.js && node --check js/storage.js",
+    "test:browser": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ingbms/TimerTool.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ingbms/TimerTool/issues"
+  },
+  "homepage": "https://github.com/ingbms/TimerTool#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.0"
+  }
+}
