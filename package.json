@@ -6,7 +6,7 @@
   "license": "CC-BY-NC-SA-4.0",
   "type": "commonjs",
   "scripts": {
-    "test": "node --check js/main.js && node --check js/ntp.js && node --check js/ui.js && node --check js/timer.js && node --check js/audio.js && node --check js/storage.js",
+    "test": "node --check js/main.js && node --check js/ntp.js && node --check js/ui.js && node --check js/timer.js && node --check js/audio.js && node --check js/storage.js && node --check js/pagecount.js",
     "test:browser": "playwright test"
   },
   "repository": {

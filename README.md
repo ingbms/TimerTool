@@ -57,6 +57,22 @@ Open `index.html` directly in a browser or serve the folder via a static server.
 
 Because this is a static site, it can be published directly via GitHub Pages.
 
+## Pageview statistics
+
+The published TimerTool counts page loads through the self-hosted endpoint
+`https://stats-timertool.unobex.de/count`, with its own separate statistics site.
+Repeated page loads count again. The counter sends only the page path, without
+URL parameters, fragments, titles, timer settings or user identifiers. It does not
+use analytics cookies, browser storage or device/browser measurements. The pixel
+is requested anonymously without cookies; client IP/browser headers are replaced
+by fixed technical values before reaching GoatCounter. Optional detail collection,
+session recognition and individual-hit storage are disabled for this site.
+Counts are not deleted automatically and remain available for at least three months.
+
+Counting is active only on `timertool.unobex.de` and the exact GitHub project path
+`https://ingbms.github.io/TimerTool/`. Local previews and offline files are not counted.
+The application's existing storage of timer settings is separate and unchanged.
+
 ## Use Cases
 
 TimerTool is suitable for any scenario requiring flexible, browser-based time management. 

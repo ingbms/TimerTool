@@ -257,3 +257,44 @@ test("alarm plus backward sync does not move the displayed clock backwards", asy
     expect(secondsOfDay(samples[index])).toBeGreaterThanOrEqual(secondsOfDay(samples[index - 1]));
   }
 });
+
+
+test("page counter counts reloads without identifiers and stays inactive outside TimerTool", async ({ page, context }) => {
+  const hits = [], errors = [];
+  const source = fs.readFileSync(path.join(root, "js/pagecount.js"), "utf8");
+  await context.addCookies([{ name: "must-not-be-sent", value: "test", url: "https://stats-timertool.unobex.de/", secure: true, sameSite: "None" }]);
+  await page.addInitScript(() => {
+    for (const method of ["getItem", "setItem", "removeItem", "clear"]) {
+      Storage.prototype[method] = () => { throw new Error("Counter must not access browser storage"); };
+    }
+  });
+  page.on("pageerror", error => errors.push(error.message));
+  const fixture = async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/js/pagecount.js")) return route.fulfill({ contentType: "application/javascript", body: source });
+    return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><body><script src="js/pagecount.js"></script></body></html>' });
+  };
+  await page.route("https://timertool.unobex.de/**", fixture);
+  await page.route("https://ingbms.github.io/**", fixture);
+  await page.route("http://127.0.0.1:*/**", fixture);
+  await page.route("https://stats-timertool.unobex.de/**", async route => {
+    const request = route.request(), url = new URL(request.url());
+    expect(url.pathname).toBe("/count");
+    expect([...url.searchParams.keys()]).toEqual(["p"]);
+    expect(request.headers().cookie).toBeUndefined();
+    expect(request.headers().referer).not.toContain("must-not-be-sent");
+    hits.push(url.searchParams.get("p"));
+    await route.fulfill({ status: 200, contentType: "image/gif", headers: { "access-control-allow-origin": "*", "cache-control": "no-store" }, body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64") });
+  });
+  await page.goto(appUrl, { waitUntil: "networkidle" });
+  expect(hits).toEqual([]);
+  await page.goto("https://timertool.unobex.de/?private=must-not-be-sent#config", { waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "networkidle" });
+  expect(hits).toEqual(["/", "/"]);
+  await page.goto("https://ingbms.github.io/TimerTool/?private=must-not-be-sent", { waitUntil: "networkidle" });
+  expect(hits).toEqual(["/", "/", "/TimerTool/"]);
+  await page.goto("https://ingbms.github.io/TimerToolbox/", { waitUntil: "networkidle" });
+  await page.goto("https://ingbms.github.io/OtherProject/", { waitUntil: "networkidle" });
+  expect(hits).toEqual(["/", "/", "/TimerTool/"]);
+  expect(errors).toEqual([]);
+});
